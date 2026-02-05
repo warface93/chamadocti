@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Plus, Edit, Trash2, UserX, Shield, ShieldOff, User as UserIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -17,6 +17,7 @@ const Usuarios = () => {
   const { users, sectors, addUser, updateUser, deleteUser } = useData();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     username: '',
@@ -30,31 +31,50 @@ const Usuarios = () => {
     return <Navigate to="/meus-chamados" replace />;
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     
-    if (editingUser) {
-      updateUser(editingUser.id, {
-        name: formData.name,
-        username: formData.username,
-        email: formData.email || undefined,
-        sector_id: formData.sector_id,
-        role: formData.role,
-      });
-      toast.success('Usuário atualizado!');
-    } else {
-      addUser({
-        name: formData.name,
-        username: formData.username,
-        email: formData.email || undefined,
-        sector_id: formData.sector_id,
-        role: formData.role,
-        active: true,
-      });
-      toast.success('Usuário criado!');
+    try {
+      if (editingUser) {
+        await updateUser(editingUser.id, {
+          name: formData.name,
+          username: formData.username,
+          email: formData.email || undefined,
+          sector_id: formData.sector_id,
+          role: formData.role,
+        });
+        toast.success('Usuário atualizado!');
+      } else {
+        if (!formData.password || formData.password.length < 6) {
+          toast.error('A senha deve ter pelo menos 6 caracteres');
+          setIsLoading(false);
+          return;
+        }
+        
+        await addUser({
+          name: formData.name,
+          username: formData.username,
+          email: formData.email || undefined,
+          sector_id: formData.sector_id,
+          role: formData.role,
+          active: true,
+          password: formData.password,
+        });
+        toast.success('Usuário criado! Ele pode fazer login com o username e senha cadastrados.');
+      }
+      
+      resetForm();
+    } catch (error: any) {
+      console.error('Error:', error);
+      if (error.message?.includes('already registered')) {
+        toast.error('Este email já está cadastrado no sistema');
+      } else {
+        toast.error('Erro ao salvar usuário: ' + (error.message || 'Erro desconhecido'));
+      }
+    } finally {
+      setIsLoading(false);
     }
-    
-    resetForm();
   };
 
   const resetForm = () => {
@@ -76,22 +96,34 @@ const Usuarios = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Tem certeza que deseja excluir este usuário?')) {
-      deleteUser(id);
-      toast.success('Usuário excluído!');
+      try {
+        await deleteUser(id);
+        toast.success('Usuário excluído!');
+      } catch (error) {
+        toast.error('Erro ao excluir usuário');
+      }
     }
   };
 
-  const handleToggleActive = (user: User) => {
-    updateUser(user.id, { active: !user.active });
-    toast.success(user.active ? 'Usuário desativado!' : 'Usuário ativado!');
+  const handleToggleActive = async (user: User) => {
+    try {
+      await updateUser(user.id, { active: !user.active });
+      toast.success(user.active ? 'Usuário desativado!' : 'Usuário ativado!');
+    } catch (error) {
+      toast.error('Erro ao atualizar usuário');
+    }
   };
 
-  const handleToggleRole = (user: User) => {
-    const newRole: UserRole = user.role === 'admin' ? 'user' : 'admin';
-    updateUser(user.id, { role: newRole });
-    toast.success(newRole === 'admin' ? 'Usuário promovido!' : 'Usuário rebaixado!');
+  const handleToggleRole = async (user: User) => {
+    try {
+      const newRole: UserRole = user.role === 'admin' ? 'user' : 'admin';
+      await updateUser(user.id, { role: newRole });
+      toast.success(newRole === 'admin' ? 'Usuário promovido!' : 'Usuário rebaixado!');
+    } catch (error) {
+      toast.error('Erro ao atualizar função');
+    }
   };
 
   const getSectorName = (id: string) => sectors.find(s => s.id === id)?.name || 'N/A';
@@ -112,6 +144,11 @@ const Usuarios = () => {
               <DialogTitle className="text-foreground">
                 {editingUser ? 'Editar Usuário' : 'Novo Usuário'}
               </DialogTitle>
+              <DialogDescription>
+                {editingUser 
+                  ? 'Edite as informações do usuário abaixo.'
+                  : 'Preencha os dados para criar um novo usuário. O usuário poderá fazer login com o username e senha.'}
+              </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
@@ -124,7 +161,7 @@ const Usuarios = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Username</Label>
+                <Label>Username (para login)</Label>
                 <Input
                   value={formData.username}
                   onChange={(e) => setFormData({ ...formData, username: e.target.value })}
@@ -133,13 +170,16 @@ const Usuarios = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Email (opcional)</Label>
+                <Label>Email</Label>
                 <Input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="bg-secondary/50"
+                  placeholder="usuario@empresa.com"
+                  required
                 />
+                <p className="text-xs text-muted-foreground">O email é usado para autenticação</p>
               </div>
               <div className="space-y-2">
                 <Label>Setor</Label>
@@ -175,6 +215,8 @@ const Usuarios = () => {
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className="bg-secondary/50"
                     required={!editingUser}
+                    minLength={6}
+                    placeholder="Mínimo 6 caracteres"
                   />
                 </div>
               )}
@@ -182,8 +224,8 @@ const Usuarios = () => {
                 <Button type="button" variant="outline" onClick={resetForm}>
                   Cancelar
                 </Button>
-                <Button type="submit" variant="glow">
-                  {editingUser ? 'Salvar' : 'Criar'}
+                <Button type="submit" variant="glow" disabled={isLoading}>
+                  {isLoading ? 'Salvando...' : editingUser ? 'Salvar' : 'Criar'}
                 </Button>
               </div>
             </form>

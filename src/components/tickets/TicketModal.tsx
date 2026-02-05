@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { Ticket, User, TicketStatus, Message } from '@/types';
+import { useState, useEffect } from 'react';
+import { Ticket, User, TicketStatus } from '@/types';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -37,35 +37,56 @@ const statusStyles = {
 };
 
 const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
-  const { updateTicket, messages, addMessage, users } = useData();
+  const { updateTicket, messages, addMessage, users, refetchMessages } = useData();
   const { user: currentUser, isAdmin } = useAuth();
   const [newMessage, setNewMessage] = useState('');
   const [rating, setRating] = useState(ticket.rating || 0);
   const [hoveredRating, setHoveredRating] = useState(0);
+  const [isSending, setIsSending] = useState(false);
+
+  // Fetch messages for this ticket when modal opens
+  useEffect(() => {
+    refetchMessages(ticket.id);
+  }, [ticket.id]);
 
   const ticketMessages = messages.filter(m => m.ticket_id === ticket.id);
 
-  const handleStatusChange = (status: TicketStatus) => {
-    updateTicket(ticket.id, { status });
-    toast.success('Status atualizado!');
+  const handleStatusChange = async (status: TicketStatus) => {
+    try {
+      await updateTicket(ticket.id, { status });
+      toast.success('Status atualizado!');
+    } catch (error) {
+      toast.error('Erro ao atualizar status');
+    }
   };
 
-  const handleSendMessage = () => {
-    if (!newMessage.trim() || !currentUser) return;
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !currentUser || isSending) return;
     
-    addMessage({
-      ticket_id: ticket.id,
-      user_id: currentUser.id,
-      content: newMessage.trim(),
-    });
-    setNewMessage('');
-    toast.success('Mensagem enviada!');
+    setIsSending(true);
+    try {
+      await addMessage({
+        ticket_id: ticket.id,
+        user_id: currentUser.id,
+        content: newMessage.trim(),
+      });
+      setNewMessage('');
+      toast.success('Mensagem enviada!');
+    } catch (error) {
+      toast.error('Erro ao enviar mensagem');
+    } finally {
+      setIsSending(false);
+    }
   };
 
-  const handleRating = (value: number) => {
-    setRating(value);
-    updateTicket(ticket.id, { rating: value });
-    toast.success('Avaliação enviada!');
+  const handleRating = async (value: number) => {
+    try {
+      setRating(value);
+      await updateTicket(ticket.id, { rating: value });
+      toast.success('Avaliação enviada!');
+    } catch (error) {
+      toast.error('Erro ao enviar avaliação');
+    }
   };
 
   const getUserById = (id: string) => users.find(u => u.id === id);
@@ -82,6 +103,9 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
               {statusLabels[ticket.status]}
             </Badge>
           </DialogTitle>
+          <DialogDescription>
+            Detalhes do chamado e histórico de mensagens
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -185,7 +209,7 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
                         )}
                       >
                         <p className="text-xs text-muted-foreground mb-1">
-                          {msgUser?.name} • {format(new Date(msg.created_at), 'HH:mm')}
+                          {msgUser?.name || 'Usuário'} • {format(new Date(msg.created_at), 'HH:mm')}
                         </p>
                         <p className="text-sm text-foreground">{msg.content}</p>
                       </div>
@@ -208,7 +232,7 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
                   }
                 }}
               />
-              <Button variant="glow" size="icon" onClick={handleSendMessage}>
+              <Button variant="glow" size="icon" onClick={handleSendMessage} disabled={isSending}>
                 <Send className="w-4 h-4" />
               </Button>
             </div>
