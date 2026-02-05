@@ -15,6 +15,7 @@ const NovoChamado = () => {
   const { user, isAdmin } = useAuth();
   const { addTicket } = useData();
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -30,7 +31,7 @@ const NovoChamado = () => {
     return <Navigate to="/login" replace />;
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.category) {
@@ -38,17 +39,24 @@ const NovoChamado = () => {
       return;
     }
 
-    addTicket({
-      title: formData.title,
-      description: formData.description,
-      category: formData.category,
-      status: 'open',
-      user_id: user.id,
-      attachment_url: formData.attachment ? URL.createObjectURL(formData.attachment) : undefined,
-    });
+    setIsLoading(true);
+    try {
+      await addTicket({
+        title: formData.title,
+        description: formData.description,
+        category: formData.category,
+        status: 'open',
+        user_id: user.id,
+        attachment_url: formData.attachment ? URL.createObjectURL(formData.attachment) : undefined,
+      });
 
-    toast.success('Chamado criado com sucesso!');
-    navigate('/meus-chamados');
+      toast.success('Chamado criado com sucesso!');
+      navigate('/meus-chamados');
+    } catch (error) {
+      toast.error('Erro ao criar chamado');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -124,9 +132,9 @@ const NovoChamado = () => {
             </div>
           </div>
 
-          <Button type="submit" variant="glow" className="w-full">
+          <Button type="submit" variant="glow" className="w-full" disabled={isLoading}>
             <Send className="w-4 h-4 mr-2" />
-            Enviar Chamado
+            {isLoading ? 'Enviando...' : 'Enviar Chamado'}
           </Button>
         </form>
       </div>
