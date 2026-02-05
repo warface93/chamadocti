@@ -19,7 +19,6 @@ const Sidebar = () => {
 
   const adminLinks = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/chamados', icon: FileText, label: 'Chamados' },
     { to: '/usuarios', icon: Users, label: 'Usuários' },
     { to: '/setores', icon: Building2, label: 'Setores' },
     { to: '/relatorios', icon: BarChart3, label: 'Relatórios' },
