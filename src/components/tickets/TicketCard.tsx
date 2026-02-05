@@ -9,6 +9,7 @@ interface TicketCardProps {
   ticket: Ticket;
   user?: User;
   onClick?: () => void;
+  isNewest?: boolean; // For user view - only newest should glow
 }
 
 const statusLabels = {
@@ -34,16 +35,17 @@ const categoryLabels = {
   other: 'Outro',
 };
 
-const TicketCard = ({ ticket, user, onClick }: TicketCardProps) => {
+const TicketCard = ({ ticket, user, onClick, isNewest }: TicketCardProps) => {
   const isCritical = ticket.status === 'critical';
-  const isNew = ticket.is_new;
+  // For admin view: show glow if is_new. For user view: only show if isNewest
+  const shouldGlow = isNewest !== undefined ? isNewest && ticket.is_new : ticket.is_new;
 
   return (
     <div
       onClick={onClick}
       className={cn(
         'bg-card rounded-xl p-5 border cursor-pointer transition-all duration-300',
-        isNew && 'new-ticket-glow',
+        shouldGlow && 'new-ticket-glow',
         isCritical ? 'glow-border-critical hover:bg-critical/5' : 'glow-border hover:bg-primary/5',
         'card-hover-effect'
       )}
@@ -55,7 +57,7 @@ const TicketCard = ({ ticket, user, onClick }: TicketCardProps) => {
               <AlertTriangle className="w-4 h-4 text-critical pulse-critical" />
             )}
             <h3 className="font-semibold text-foreground">{ticket.title}</h3>
-            {isNew && (
+            {shouldGlow && (
               <span className="px-2 py-0.5 text-xs bg-primary/20 text-primary rounded-full">
                 Novo
               </span>
