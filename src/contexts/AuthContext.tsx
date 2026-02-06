@@ -3,7 +3,19 @@ import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { User, AuthContextType } from '@/types';
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+interface SignUpData {
+  name: string;
+  username: string;
+  email: string;
+  password: string;
+  isFirstUser?: boolean;
+}
+
+interface ExtendedAuthContextType extends AuthContextType {
+  signUp: (data: SignUpData) => Promise<boolean>;
+}
+
+const AuthContext = createContext<ExtendedAuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -82,6 +94,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signUp = async (data: SignUpData): Promise<boolean> => {
+    try {
+      const redirectUrl = `${window.location.origin}/`;
+      
+      // Create user in Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            name: data.name,
+            username: data.username,
+          }
+        }
+      });
+
+      if (authError) {
+        console.error('Auth error:', authError);
+        throw new Error(authError.message);
+      }
+
+      if (!authData.user) {
+        throw new Error('Erro ao criar usuário');
+      }
+
+      // Wait a moment for the trigger to create the profile
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // If this is the first user, promote to admin
+      if (data.isFirstUser) {
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .update({ role: 'admin' })
+          .eq('user_id', authData.user.id);
+
+        if (roleError) {
+          console.error('Error updating role to admin:', roleError);
+          // Don't throw here, user is created, just not admin
+        }
+      }
+
+      return true;
+    } catch (error: any) {
+      console.error('SignUp error:', error);
+      throw error;
+    }
+  };
+
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
       // First, find user by username to get email
@@ -134,6 +195,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         login,
         logout,
+        signUp,
         isAuthenticated: !!user,
         isAdmin: user?.role === 'admin',
       }}
