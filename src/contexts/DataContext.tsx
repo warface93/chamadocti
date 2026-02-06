@@ -214,6 +214,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (authError) throw authError;
 
       if (authData.user) {
+        // Wait for trigger to create profile and role
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
         // Update profile with sector_id
         const { error: profileError } = await supabase
           .from('profiles')
@@ -225,14 +228,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (profileError) console.error('Error updating profile:', profileError);
 
-        // Set role if admin
-        if (userData.role === 'admin') {
-          const { error: roleError } = await supabase
-            .from('user_roles')
-            .update({ role: 'admin' })
-            .eq('user_id', authData.user.id);
+        // Set role - always update to ensure correct role is set
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .update({ role: userData.role || 'user' })
+          .eq('user_id', authData.user.id);
 
-          if (roleError) console.error('Error updating role:', roleError);
+        if (roleError) {
+          console.error('Error updating role:', roleError);
+          // If update failed, try to insert (in case trigger didn't create it)
+          if (roleError.code === 'PGRST116') {
+            await supabase
+              .from('user_roles')
+              .insert({ user_id: authData.user.id, role: userData.role || 'user' });
+          }
         }
 
         await fetchUsers();
