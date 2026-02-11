@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { DataProvider } from "@/contexts/DataContext";
 import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
 import Layout from "./components/layout/Layout";
 import Dashboard from "./pages/Dashboard";
 import Usuarios from "./pages/Usuarios";
@@ -27,6 +28,7 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/" element={<Navigate to="/login" replace />} />
               <Route element={<Layout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
