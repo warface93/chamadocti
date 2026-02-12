@@ -44,13 +44,11 @@ const Login = () => {
 
   const checkIfUsersExist = async () => {
     try {
-      const { count, error } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true });
+      const { data, error } = await supabase.rpc('check_has_users');
       
       if (error) throw error;
       
-      const usersExist = (count || 0) > 0;
+      const usersExist = !!data;
       setHasUsers(usersExist);
       
       // Se não há usuários, forçar modo de cadastro
