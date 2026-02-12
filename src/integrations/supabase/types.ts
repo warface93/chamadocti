@@ -173,6 +173,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_has_users: { Args: never; Returns: boolean }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_ticket_owner: {
         Args: { _ticket_id: string; _user_id: string }
