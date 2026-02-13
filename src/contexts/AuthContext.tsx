@@ -145,21 +145,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
-      // First, find user by username to get email
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('email, id')
-        .eq('username', username)
-        .maybeSingle();
+      // First, find user by username to get email (using RPC to bypass RLS)
+      const { data: email, error: rpcError } = await supabase.rpc('get_email_by_username', {
+        _username: username,
+      });
 
-      if (profileError || !profile?.email) {
-        console.error('User not found:', profileError);
+      if (rpcError || !email) {
+        console.error('User not found:', rpcError);
         return false;
       }
 
       // Sign in with email and password
       const { error } = await supabase.auth.signInWithPassword({
-        email: profile.email,
+        email: email,
         password: password,
       });
 
