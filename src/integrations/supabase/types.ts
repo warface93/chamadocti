@@ -174,6 +174,7 @@ export type Database = {
     }
     Functions: {
       check_has_users: { Args: never; Returns: boolean }
+      get_email_by_username: { Args: { _username: string }; Returns: string }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_ticket_owner: {
         Args: { _ticket_id: string; _user_id: string }
