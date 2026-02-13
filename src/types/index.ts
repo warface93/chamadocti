@@ -9,6 +9,7 @@ export interface User {
   name: string;
   username: string;
   email?: string;
+  phone?: string;
   sector_id: string;
   role: UserRole;
   active: boolean;
