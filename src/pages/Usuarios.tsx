@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, UserX, Shield, ShieldOff, User as UserIcon } from 'lucide-react';
+import { Plus, Edit, Trash2, UserX, Shield, ShieldOff, User as UserIcon, Phone, KeyRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const Usuarios = () => {
   const { isAdmin } = useAuth();
@@ -22,10 +23,18 @@ const Usuarios = () => {
     name: '',
     username: '',
     email: '',
+    phone: '',
     sector_id: '',
     role: 'user' as UserRole,
     password: '',
   });
+
+  // Password reset dialog
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [passwordUserId, setPasswordUserId] = useState('');
+  const [passwordUserName, setPasswordUserName] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   if (!isAdmin) {
     return <Navigate to="/meus-chamados" replace />;
@@ -41,6 +50,7 @@ const Usuarios = () => {
           name: formData.name,
           username: formData.username,
           email: formData.email || undefined,
+          phone: formData.phone || undefined,
           sector_id: formData.sector_id,
           role: formData.role,
         });
@@ -56,6 +66,7 @@ const Usuarios = () => {
           name: formData.name,
           username: formData.username,
           email: formData.email || undefined,
+          phone: formData.phone || undefined,
           sector_id: formData.sector_id,
           role: formData.role,
           active: true,
@@ -78,7 +89,7 @@ const Usuarios = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', username: '', email: '', sector_id: '', role: 'user', password: '' });
+    setFormData({ name: '', username: '', email: '', phone: '', sector_id: '', role: 'user', password: '' });
     setEditingUser(null);
     setIsDialogOpen(false);
   };
@@ -89,6 +100,7 @@ const Usuarios = () => {
       name: user.name,
       username: user.username,
       email: user.email || '',
+      phone: user.phone || '',
       sector_id: user.sector_id,
       role: user.role,
       password: '',
@@ -123,6 +135,29 @@ const Usuarios = () => {
       toast.success(newRole === 'admin' ? 'Usuário promovido!' : 'Usuário rebaixado!');
     } catch (error) {
       toast.error('Erro ao atualizar função');
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      toast.error('A senha deve ter pelo menos 6 caracteres');
+      return;
+    }
+    setIsResettingPassword(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke('admin-update-password', {
+        body: { user_id: passwordUserId, new_password: newPassword },
+      });
+      if (res.error) throw new Error(res.error.message);
+      if (res.data?.error) throw new Error(res.data.error);
+      toast.success('Senha alterada com sucesso!');
+      setPasswordDialogOpen(false);
+      setNewPassword('');
+    } catch (error: any) {
+      toast.error('Erro ao alterar senha: ' + (error.message || 'Erro desconhecido'));
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -170,16 +205,24 @@ const Usuarios = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Email</Label>
+                <Label>Telefone</Label>
+                <Input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="bg-secondary/50"
+                  placeholder="(00) 00000-0000"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Email <span className="text-muted-foreground text-xs">(opcional)</span></Label>
                 <Input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="bg-secondary/50"
                   placeholder="usuario@empresa.com"
-                  required
                 />
-                <p className="text-xs text-muted-foreground">O email é usado para autenticação</p>
               </div>
               <div className="space-y-2">
                 <Label>Setor</Label>
@@ -233,6 +276,34 @@ const Usuarios = () => {
         </Dialog>
       </div>
 
+      {/* Password Reset Dialog */}
+      <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle>Alterar Senha - {passwordUserName}</DialogTitle>
+            <DialogDescription>Digite a nova senha para o usuário.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nova Senha</Label>
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+                minLength={6}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>Cancelar</Button>
+              <Button variant="glow" onClick={handleResetPassword} disabled={isResettingPassword}>
+                {isResettingPassword ? 'Salvando...' : 'Salvar Senha'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {users.map((user) => (
           <div
@@ -266,6 +337,12 @@ const Usuarios = () => {
                 <span className="text-muted-foreground">Setor:</span>
                 <span className="text-foreground">{getSectorName(user.sector_id)}</span>
               </div>
+              {user.phone && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Telefone:</span>
+                  <span className="text-foreground">{user.phone}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Função:</span>
                 <span className={cn(
@@ -286,6 +363,15 @@ const Usuarios = () => {
               <Button size="sm" variant="outline" onClick={() => handleEdit(user)}>
                 <Edit className="w-3 h-3 mr-1" />
                 Editar
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => {
+                setPasswordUserId(user.id);
+                setPasswordUserName(user.name);
+                setNewPassword('');
+                setPasswordDialogOpen(true);
+              }}>
+                <KeyRound className="w-3 h-3 mr-1" />
+                Senha
               </Button>
               <Button size="sm" variant="outline" onClick={() => handleToggleActive(user)}>
                 <UserX className="w-3 h-3 mr-1" />

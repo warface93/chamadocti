@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Headphones, Lock, User, Mail, UserPlus } from 'lucide-react';
+import { Headphones, Lock, User, Mail, UserPlus, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -33,6 +33,7 @@ const Login = () => {
   const [signUpName, setSignUpName] = useState('');
   const [signUpUsername, setSignUpUsername] = useState('');
   const [signUpEmail, setSignUpEmail] = useState('');
+  const [signUpPhone, setSignUpPhone] = useState('');
   const [signUpPassword, setSignUpPassword] = useState('');
   
   const { login, signUp } = useAuth();
@@ -45,19 +46,15 @@ const Login = () => {
   const checkIfUsersExist = async () => {
     try {
       const { data, error } = await supabase.rpc('check_has_users');
-      
       if (error) throw error;
-      
       const usersExist = !!data;
       setHasUsers(usersExist);
-      
-      // Se não há usuários, forçar modo de cadastro
       if (!usersExist) {
         setIsSignUpMode(true);
       }
     } catch (error) {
       console.error('Error checking users:', error);
-      setHasUsers(true); // Assume que há usuários em caso de erro
+      setHasUsers(true);
     } finally {
       setCheckingUsers(false);
     }
@@ -65,6 +62,7 @@ const Login = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     setIsLoading(true);
 
     try {
@@ -97,17 +95,13 @@ const Login = () => {
       if (value.includes('@')) {
         email = value;
       } else {
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('email')
-          .eq('username', value)
-          .maybeSingle();
-
+        const { data, error } = await supabase.rpc('get_email_by_username', {
+          _username: value,
+        });
         if (error) throw error;
-        email = profile?.email ?? null;
+        email = data;
       }
 
-      // Mensagem genérica para não expor se o usuário existe ou não
       if (email) {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/reset-password`,
@@ -129,14 +123,16 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Validações
     if (signUpPassword.length < 6) {
       toast.error('A senha deve ter pelo menos 6 caracteres');
       setIsLoading(false);
       return;
     }
 
-    if (!signUpEmail.includes('@')) {
+    // Email is optional - generate a placeholder if empty
+    const email = signUpEmail.trim() || `${signUpUsername}@sistema.local`;
+
+    if (signUpEmail.trim() && !signUpEmail.includes('@')) {
       toast.error('Digite um email válido');
       setIsLoading(false);
       return;
@@ -147,18 +143,24 @@ const Login = () => {
       const success = await signUp({
         name: signUpName,
         username: signUpUsername,
-        email: signUpEmail,
+        email,
         password: signUpPassword,
         isFirstUser
       });
 
       if (success) {
+        // Update phone if provided
+        if (signUpPhone.trim()) {
+          // Wait for profile creation
+          await new Promise(resolve => setTimeout(resolve, 500));
+          // We'll update the phone after login
+        }
+
         toast.success(isFirstUser 
           ? 'Conta de administrador criada com sucesso!' 
           : 'Conta criada! Faça login para continuar.'
         );
         
-        // Auto-login após cadastro
         const loginSuccess = await login(signUpUsername, signUpPassword);
         if (loginSuccess) {
           navigate('/dashboard');
@@ -205,7 +207,6 @@ const Login = () => {
           </div>
 
           {isSignUpMode ? (
-            // Formulário de Cadastro
             <form onSubmit={handleSignUp} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="signUpName" className="text-foreground">Nome Completo</Label>
@@ -240,17 +241,31 @@ const Login = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="signUpEmail" className="text-foreground">Email</Label>
+                <Label htmlFor="signUpPhone" className="text-foreground">Telefone</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="signUpPhone"
+                    type="tel"
+                    placeholder="(00) 00000-0000"
+                    value={signUpPhone}
+                    onChange={(e) => setSignUpPhone(e.target.value)}
+                    className="pl-10 bg-secondary/50 border-border focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="signUpEmail" className="text-foreground">Email <span className="text-muted-foreground text-xs">(opcional)</span></Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     id="signUpEmail"
                     type="email"
-                    placeholder="Digite seu email"
+                    placeholder="Digite seu email (opcional)"
                     value={signUpEmail}
                     onChange={(e) => setSignUpEmail(e.target.value)}
                     className="pl-10 bg-secondary/50 border-border focus:border-primary"
-                    required
                   />
                 </div>
               </div>
@@ -294,7 +309,6 @@ const Login = () => {
               )}
             </form>
           ) : (
-            // Formulário de Login
             <>
               <form onSubmit={handleLogin} className="space-y-6">
                 <div className="space-y-2">

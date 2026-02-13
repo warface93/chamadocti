@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { User, AuthContextType } from '@/types';
@@ -22,40 +22,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        
-        if (session?.user) {
-          // Defer Supabase calls with setTimeout to avoid deadlock
-          setTimeout(() => {
-            fetchUserProfile(session.user.id);
-          }, 0);
-        } else {
-          setUser(null);
-          setLoading(false);
-        }
-      }
-    );
-
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        fetchUserProfile(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const fetchUserProfile = async (userId: string) => {
+  const fetchUserProfile = useCallback(async (userId: string) => {
     try {
-      // Fetch profile
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -64,7 +32,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (profileError) throw profileError;
 
-      // Fetch role
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
@@ -79,6 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name: profile.name,
           username: profile.username,
           email: profile.email || undefined,
+          phone: profile.phone || undefined,
           sector_id: profile.sector_id || '',
           role: roleData?.role || 'user',
           active: profile.active ?? true,
@@ -92,13 +60,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        
+        if (session?.user) {
+          setTimeout(() => {
+            fetchUserProfile(session.user.id);
+          }, 0);
+        } else {
+          setUser(null);
+          setLoading(false);
+        }
+      }
+    );
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        fetchUserProfile(session.user.id);
+      } else {
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [fetchUserProfile]);
 
   const signUp = async (data: SignUpData): Promise<boolean> => {
     try {
       const redirectUrl = `${window.location.origin}/`;
       
-      // Create user in Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -120,10 +115,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Erro ao criar usuário');
       }
 
-      // Wait a moment for the trigger to create the profile
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // If this is the first user, promote to admin
       if (data.isFirstUser) {
         const { error: roleError } = await supabase
           .from('user_roles')
@@ -132,7 +125,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (roleError) {
           console.error('Error updating role to admin:', roleError);
-          // Don't throw here, user is created, just not admin
         }
       }
 
@@ -145,7 +137,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
-      // First, find user by username to get email (using RPC to bypass RLS)
       const { data: email, error: rpcError } = await supabase.rpc('get_email_by_username', {
         _username: username,
       });
@@ -155,8 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
 
-      // Sign in with email and password
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
         email: email,
         password: password,
       });
@@ -164,6 +154,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         console.error('Login error:', error);
         return false;
+      }
+
+      // Wait for profile to be fetched before returning success
+      if (authData.user) {
+        await fetchUserProfile(authData.user.id);
       }
 
       return true;
