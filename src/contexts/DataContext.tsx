@@ -33,11 +33,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch all data on mount
   useEffect(() => {
     fetchAllData();
     
-    // Set up realtime subscriptions
     const ticketsChannel = supabase
       .channel('tickets-changes')
       .on(
@@ -117,6 +115,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: profile.name,
         username: profile.username,
         email: profile.email || undefined,
+        phone: profile.phone || undefined,
         sector_id: profile.sector_id || '',
         role: userRole?.role || 'user',
         active: profile.active ?? true,
@@ -152,7 +151,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    // Cast the data to Ticket type
     const typedTickets = (data || []).map(t => ({
       ...t,
       category: t.category as TicketCategory,
@@ -198,7 +196,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const email = userData.email || `${userData.username}@sistema.local`;
       
-      // Create auth user
+      // Save current session to restore it after creating the user
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password: userData.password,
@@ -214,21 +214,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (authError) throw authError;
 
       if (authData.user) {
-        // Wait for trigger to create profile and role
         await new Promise(resolve => setTimeout(resolve, 1500));
 
-        // Update profile with sector_id
+        // Restore admin session
+        if (currentSession) {
+          await supabase.auth.setSession({
+            access_token: currentSession.access_token,
+            refresh_token: currentSession.refresh_token,
+          });
+        }
+
+        const updateData: Record<string, any> = {
+          sector_id: userData.sector_id,
+          active: userData.active,
+        };
+        if (userData.phone) updateData.phone = userData.phone;
+
         const { error: profileError } = await supabase
           .from('profiles')
-          .update({ 
-            sector_id: userData.sector_id,
-            active: userData.active 
-          })
+          .update(updateData)
           .eq('id', authData.user.id);
 
         if (profileError) console.error('Error updating profile:', profileError);
 
-        // Set role - always update to ensure correct role is set
         const { error: roleError } = await supabase
           .from('user_roles')
           .update({ role: userData.role || 'user' })
@@ -236,7 +244,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (roleError) {
           console.error('Error updating role:', roleError);
-          // If update failed, try to insert (in case trigger didn't create it)
           if (roleError.code === 'PGRST116') {
             await supabase
               .from('user_roles')
@@ -254,21 +261,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateUser = async (id: string, userData: Partial<User>) => {
     try {
-      // Update profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          name: userData.name,
-          username: userData.username,
-          email: userData.email,
-          sector_id: userData.sector_id,
-          active: userData.active,
-        })
-        .eq('id', id);
+      // Only include defined fields in the update
+      const profileUpdate: Record<string, any> = {};
+      if (userData.name !== undefined) profileUpdate.name = userData.name;
+      if (userData.username !== undefined) profileUpdate.username = userData.username;
+      if (userData.email !== undefined) profileUpdate.email = userData.email;
+      if (userData.phone !== undefined) profileUpdate.phone = userData.phone;
+      if (userData.sector_id !== undefined) profileUpdate.sector_id = userData.sector_id;
+      if (userData.active !== undefined) profileUpdate.active = userData.active;
 
-      if (profileError) throw profileError;
+      if (Object.keys(profileUpdate).length > 0) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update(profileUpdate)
+          .eq('id', id);
 
-      // Update role if changed
+        if (profileError) throw profileError;
+      }
+
       if (userData.role) {
         const { error: roleError } = await supabase
           .from('user_roles')
@@ -287,7 +297,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const deleteUser = async (id: string) => {
     try {
-      // Delete from profiles (will cascade to user_roles)
       const { error } = await supabase
         .from('profiles')
         .delete()
@@ -359,8 +368,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }]);
 
       if (error) throw error;
-
-      // No need to manually fetch - realtime will handle it
     } catch (error) {
       console.error('Error adding ticket:', error);
       throw error;
@@ -378,8 +385,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('id', id);
 
       if (error) throw error;
-
-      // No need to manually fetch - realtime will handle it
     } catch (error) {
       console.error('Error updating ticket:', error);
       throw error;
@@ -396,7 +401,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) throw error;
 
-      // Add message locally immediately for better UX
       if (data) {
         setMessages(prev => [...prev, data]);
       }

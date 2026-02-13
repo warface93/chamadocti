@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Star } from 'lucide-react';
+import { Send, Star, Save } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -43,20 +43,31 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
   const [rating, setRating] = useState(ticket.rating || 0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [isSending, setIsSending] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<TicketStatus>(ticket.status);
+  const [isSavingStatus, setIsSavingStatus] = useState(false);
 
-  // Fetch messages for this ticket when modal opens
+  const hasStatusChanged = selectedStatus !== ticket.status;
+
   useEffect(() => {
     refetchMessages(ticket.id);
   }, [ticket.id]);
 
+  useEffect(() => {
+    setSelectedStatus(ticket.status);
+  }, [ticket.status]);
+
   const ticketMessages = messages.filter(m => m.ticket_id === ticket.id);
 
-  const handleStatusChange = async (status: TicketStatus) => {
+  const handleSaveStatus = async () => {
+    if (!hasStatusChanged) return;
+    setIsSavingStatus(true);
     try {
-      await updateTicket(ticket.id, { status });
+      await updateTicket(ticket.id, { status: selectedStatus });
       toast.success('Status atualizado!');
     } catch (error) {
       toast.error('Erro ao atualizar status');
+    } finally {
+      setIsSavingStatus(false);
     }
   };
 
@@ -126,7 +137,7 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
           {isAdmin && (
             <div className="flex items-center gap-4">
               <span className="text-sm text-muted-foreground">Alterar Status:</span>
-              <Select value={ticket.status} onValueChange={(v) => handleStatusChange(v as TicketStatus)}>
+              <Select value={selectedStatus} onValueChange={(v) => setSelectedStatus(v as TicketStatus)}>
                 <SelectTrigger className="w-48 bg-secondary/50">
                   <SelectValue />
                 </SelectTrigger>
@@ -138,6 +149,12 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
                   <SelectItem value="pending">Pendente</SelectItem>
                 </SelectContent>
               </Select>
+              {hasStatusChanged && (
+                <Button variant="glow" size="sm" onClick={handleSaveStatus} disabled={isSavingStatus}>
+                  <Save className="w-4 h-4 mr-1" />
+                  {isSavingStatus ? 'Salvando...' : 'Salvar'}
+                </Button>
+              )}
             </div>
           )}
 

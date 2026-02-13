@@ -37,7 +37,8 @@ const Header = ({ title }: HeaderProps) => {
           <button className="relative p-2 rounded-lg hover:bg-secondary/50 transition-colors">
             <Bell className={cn(
               "w-5 h-5",
-              criticalCount > 0 ? "text-critical" : "text-muted-foreground"
+              newCount > 0 ? "text-primary bell-blink" : "text-muted-foreground",
+              criticalCount > 0 && "text-critical"
             )} />
             {newCount > 0 && (
               <span className={cn(
