@@ -196,18 +196,12 @@ const Relatorios = () => {
                 paddingAngle={5}
                 dataKey="value"
                 label={({ name, value }) => `${name}: ${value}`}
+                isAnimationActive={false}
               >
                 {statusData.map((_, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'hsl(222, 47%, 8%)', 
-                  border: '1px solid hsl(217, 33%, 20%)',
-                  borderRadius: '8px'
-                }} 
-              />
             </PieChart>
           </ResponsiveContainer>
         </div>
