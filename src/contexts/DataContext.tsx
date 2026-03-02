@@ -207,6 +207,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           data: {
             name: userData.name,
             username: userData.username,
+            must_change_password: true,
           }
         }
       });

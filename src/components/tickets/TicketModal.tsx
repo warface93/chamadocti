@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Star, Save } from 'lucide-react';
+import { Send, Star, Save, Paperclip } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -123,6 +123,19 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
           <div className="p-4 bg-secondary/30 rounded-lg">
             <p className="text-sm text-muted-foreground mb-2">Descrição</p>
             <p className="text-foreground">{ticket.description}</p>
+            {ticket.attachment_url && (
+              <div className="mt-3 flex items-center gap-2">
+                <Paperclip className="w-4 h-4 text-muted-foreground" />
+                <a
+                  href={ticket.attachment_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary hover:underline"
+                >
+                  Ver anexo
+                </a>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-between text-sm">

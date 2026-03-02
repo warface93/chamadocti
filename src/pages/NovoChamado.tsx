@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, Send } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const NovoChamado = () => {
   const { user, isAdmin } = useAuth();
@@ -41,13 +42,33 @@ const NovoChamado = () => {
 
     setIsLoading(true);
     try {
+      let attachmentUrl: string | undefined;
+
+      if (formData.attachment) {
+        const fileExt = formData.attachment.name.split('.').pop();
+        const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from('ticket-attachments')
+          .upload(filePath, formData.attachment);
+
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          toast.error('Erro ao enviar anexo');
+        } else {
+          const { data: urlData } = supabase.storage
+            .from('ticket-attachments')
+            .getPublicUrl(filePath);
+          attachmentUrl = urlData.publicUrl;
+        }
+      }
+
       await addTicket({
         title: formData.title,
         description: formData.description,
         category: formData.category,
         status: 'open',
         user_id: user.id,
-        attachment_url: formData.attachment ? URL.createObjectURL(formData.attachment) : undefined,
+        attachment_url: attachmentUrl,
       });
 
       toast.success('Chamado criado com sucesso!');
