@@ -2,6 +2,7 @@ import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import ForcePasswordChange from '@/components/ForcePasswordChange';
 
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -14,7 +15,7 @@ const pageTitles: Record<string, string> = {
 };
 
 const Layout = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, mustChangePassword, setMustChangePassword } = useAuth();
   const location = useLocation();
 
   if (!isAuthenticated) {
@@ -25,6 +26,10 @@ const Layout = () => {
 
   return (
     <div className="flex min-h-screen bg-background">
+      <ForcePasswordChange
+        open={mustChangePassword}
+        onSuccess={() => setMustChangePassword(false)}
+      />
       <Sidebar />
       <div className="flex-1 flex flex-col">
         <Header title={title} />

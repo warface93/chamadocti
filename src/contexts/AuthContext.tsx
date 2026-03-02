@@ -13,6 +13,8 @@ interface SignUpData {
 
 interface ExtendedAuthContextType extends AuthContextType {
   signUp: (data: SignUpData) => Promise<boolean>;
+  mustChangePassword: boolean;
+  setMustChangePassword: (v: boolean) => void;
 }
 
 const AuthContext = createContext<ExtendedAuthContextType | undefined>(undefined);
@@ -21,6 +23,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
 
   const fetchUserProfile = useCallback(async (userId: string) => {
     try {
@@ -159,6 +162,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Wait for profile to be fetched before returning success
       if (authData.user) {
         await fetchUserProfile(authData.user.id);
+        // Check if first login
+        const meta = authData.user.user_metadata;
+        if (meta?.must_change_password) {
+          setMustChangePassword(true);
+        }
       }
 
       return true;
@@ -191,6 +199,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signUp,
         isAuthenticated: !!user,
         isAdmin: user?.role === 'admin',
+        mustChangePassword,
+        setMustChangePassword,
       }}
     >
       {children}

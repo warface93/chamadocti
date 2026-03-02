@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog as UsersDialog, DialogContent as UsersDialogContent, DialogHeader as UsersDialogHeader, DialogTitle as UsersDialogTitle, DialogDescription as UsersDialogDescription } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Plus, Edit, Trash2, Power, Monitor, Users, DollarSign, 
   ShoppingBag, Wrench, Headphones, Building, FileText, 
@@ -37,9 +39,10 @@ const getIcon = (iconName: string) => {
 
 const Setores = () => {
   const { isAdmin } = useAuth();
-  const { sectors, addSector, updateSector, deleteSector } = useData();
+  const { sectors, users, addSector, updateSector, deleteSector } = useData();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSector, setEditingSector] = useState<Sector | null>(null);
+  const [selectedSector, setSelectedSector] = useState<Sector | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     icon: 'Monitor',
@@ -171,7 +174,10 @@ const Setores = () => {
                 !sector.active && 'opacity-60'
               )}
             >
-              <div className="flex items-center gap-4 mb-4">
+              <div
+                className="flex items-center gap-4 mb-4 cursor-pointer"
+                onClick={() => setSelectedSector(sector)}
+              >
                 <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center">
                   <Icon className="w-7 h-7 text-primary" />
                 </div>
@@ -182,6 +188,9 @@ const Setores = () => {
                     sector.active ? 'text-success' : 'text-critical'
                   )}>
                     {sector.active ? 'Ativo' : 'Inativo'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {users.filter(u => u.sector_id === sector.id).length} usuários
                   </p>
                 </div>
               </div>
@@ -202,6 +211,47 @@ const Setores = () => {
           );
         })}
       </div>
+
+      {/* Users in Sector Dialog */}
+      <UsersDialog open={!!selectedSector} onOpenChange={() => setSelectedSector(null)}>
+        <UsersDialogContent className="bg-card border-border max-w-md">
+          <UsersDialogHeader>
+            <UsersDialogTitle className="text-foreground">
+              Usuários - {selectedSector?.name}
+            </UsersDialogTitle>
+            <UsersDialogDescription>
+              Lista de usuários cadastrados neste setor
+            </UsersDialogDescription>
+          </UsersDialogHeader>
+          <ScrollArea className="max-h-[60vh]">
+            {(() => {
+              const sectorUsers = users.filter(u => u.sector_id === selectedSector?.id);
+              return sectorUsers.length > 0 ? (
+                <div className="space-y-2 pr-4">
+                  {sectorUsers.map(u => (
+                    <div key={u.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{u.name}</p>
+                        <p className="text-xs text-muted-foreground">@{u.username}</p>
+                      </div>
+                      <span className={cn(
+                        'text-xs px-2 py-1 rounded-full',
+                        u.active ? 'bg-success/10 text-success' : 'bg-critical/10 text-critical'
+                      )}>
+                        {u.active ? 'Ativo' : 'Inativo'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Nenhum usuário neste setor
+                </p>
+              );
+            })()}
+          </ScrollArea>
+        </UsersDialogContent>
+      </UsersDialog>
     </div>
   );
 };
