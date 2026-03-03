@@ -49,11 +49,21 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatusCard title="Total" value={totalTickets} icon={FileText} variant="total" />
-        <StatusCard title="Abertos" value={openTickets} icon={FolderOpen} variant="open" />
-        <StatusCard title="Em Andamento" value={inProgressTickets} icon={Clock} variant="in_progress" />
-        <StatusCard title="Resolvidos" value={resolvedTickets} icon={CheckCircle} variant="resolved" />
-        <StatusCard title="Críticos" value={criticalTickets} icon={AlertTriangle} variant="critical" />
+        <div className="cursor-pointer" onClick={() => setStatusFilter('all')}>
+          <StatusCard title="Total" value={totalTickets} icon={FileText} variant="total" />
+        </div>
+        <div className="cursor-pointer" onClick={() => setStatusFilter('open')}>
+          <StatusCard title="Abertos" value={openTickets} icon={FolderOpen} variant="open" />
+        </div>
+        <div className="cursor-pointer" onClick={() => setStatusFilter('in_progress')}>
+          <StatusCard title="Em Andamento" value={inProgressTickets} icon={Clock} variant="in_progress" />
+        </div>
+        <div className="cursor-pointer" onClick={() => setStatusFilter('resolved')}>
+          <StatusCard title="Resolvidos" value={resolvedTickets} icon={CheckCircle} variant="resolved" />
+        </div>
+        <div className="cursor-pointer" onClick={() => setStatusFilter('critical')}>
+          <StatusCard title="Críticos" value={criticalTickets} icon={AlertTriangle} variant="critical" />
+        </div>
       </div>
 
       <div className="bg-card rounded-xl p-4 border border-border glow-border">
