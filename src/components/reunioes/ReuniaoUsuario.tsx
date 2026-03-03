@@ -49,6 +49,7 @@ interface UserMeeting {
   other_description: string | null;
   created_at: string;
   equipment: string[];
+  user_name?: string;
 }
 
 const ReuniaoUsuario = () => {
@@ -62,18 +63,50 @@ const ReuniaoUsuario = () => {
   const [otherDescription, setOtherDescription] = useState('');
   const [existingMeetings, setExistingMeetings] = useState<ExistingMeeting[]>([]);
   const [myMeetings, setMyMeetings] = useState<UserMeeting[]>([]);
+  const [allActiveMeetings, setAllActiveMeetings] = useState<UserMeeting[]>([]);
   const [loading, setLoading] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   useEffect(() => {
     fetchExistingMeetings();
     fetchMyMeetings();
+    fetchAllActiveMeetings();
   }, []);
+
+  const fetchAllActiveMeetings = async () => {
+    const { data: meetings } = await supabase
+      .from('meetings')
+      .select('*')
+      .eq('status', 'em_uso')
+      .order('meeting_date', { ascending: true });
+
+    if (meetings) {
+      const enriched: UserMeeting[] = [];
+      for (const m of meetings) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', m.user_id)
+          .maybeSingle();
+        const { data: eqData } = await supabase
+          .from('meeting_equipment')
+          .select('equipment')
+          .eq('meeting_id', m.id);
+        enriched.push({
+          ...m,
+          equipment: eqData?.map(e => e.equipment) || [],
+          user_name: profile?.name || 'Desconhecido',
+        });
+      }
+      setAllActiveMeetings(enriched);
+    }
+  };
 
   const fetchExistingMeetings = async () => {
     const { data } = await supabase
       .from('meetings')
-      .select('meeting_date, start_time, end_time, location');
+      .select('meeting_date, start_time, end_time, location')
+      .eq('status', 'em_uso');
     if (data) setExistingMeetings(data);
   };
 
@@ -180,6 +213,7 @@ const ReuniaoUsuario = () => {
       setOtherDescription('');
       fetchExistingMeetings();
       fetchMyMeetings();
+      fetchAllActiveMeetings();
     } catch (err: any) {
       toast({ title: 'Erro ao enviar solicitação', description: err.message, variant: 'destructive' });
     } finally {
@@ -370,6 +404,50 @@ const ReuniaoUsuario = () => {
                   {m.other_description && (
                     <p className="text-xs text-muted-foreground">Outros: {m.other_description}</p>
                   )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* All active meetings */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+          <CalendarIcon className="w-5 h-5 text-primary" />
+          Reuniões em Aberto ({allActiveMeetings.length})
+        </h2>
+        {allActiveMeetings.length === 0 ? (
+          <p className="text-muted-foreground text-sm">Nenhuma reunião em aberto no momento.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {allActiveMeetings.map(m => (
+              <Card key={m.id} className="border-border bg-card glow-card">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-foreground">
+                      {format(new Date(m.meeting_date + 'T00:00:00'), 'dd/MM/yyyy')}
+                    </span>
+                    <Badge variant="default">Em Uso</Badge>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" /> {m.start_time} - {m.end_time}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-3 h-3" /> {m.location}
+                    </span>
+                  </div>
+                  {m.user_name && (
+                    <p className="text-xs text-muted-foreground">Solicitante: {m.user_name}</p>
+                  )}
+                  <div className="flex flex-wrap gap-1">
+                    {m.equipment.map(eq => (
+                      <Badge key={eq} variant="outline" className="text-xs">
+                        {getEquipmentLabel(eq)}
+                      </Badge>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
             ))}
