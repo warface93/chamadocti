@@ -12,6 +12,7 @@ const pageTitles: Record<string, string> = {
   '/relatorios': 'Relatórios',
   '/meus-chamados': 'Meus Chamados',
   '/novo-chamado': 'Novo Chamado',
+  '/reunioes': 'Reunião',
 };
 
 const Layout = () => {
