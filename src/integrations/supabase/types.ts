@@ -14,6 +14,103 @@ export type Database = {
   }
   public: {
     Tables: {
+      meeting_admin_items: {
+        Row: {
+          description: string
+          id: string
+          meeting_id: string
+          quantity: number
+          tombamento: string | null
+        }
+        Insert: {
+          description: string
+          id?: string
+          meeting_id: string
+          quantity?: number
+          tombamento?: string | null
+        }
+        Update: {
+          description?: string
+          id?: string
+          meeting_id?: string
+          quantity?: number
+          tombamento?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_admin_items_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_equipment: {
+        Row: {
+          equipment: string
+          id: string
+          meeting_id: string
+        }
+        Insert: {
+          equipment: string
+          id?: string
+          meeting_id: string
+        }
+        Update: {
+          equipment?: string
+          id?: string
+          meeting_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_equipment_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meetings: {
+        Row: {
+          created_at: string
+          end_time: string
+          id: string
+          location: string
+          meeting_date: string
+          other_description: string | null
+          start_time: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_time: string
+          id?: string
+          location: string
+          meeting_date: string
+          other_description?: string | null
+          start_time: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          end_time?: string
+          id?: string
+          location?: string
+          meeting_date?: string
+          other_description?: string | null
+          start_time?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string

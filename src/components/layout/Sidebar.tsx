@@ -8,7 +8,8 @@ import {
   FileText, 
   BarChart3, 
   LogOut,
-  Plus
+  Plus,
+  CalendarDays
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -22,11 +23,13 @@ const Sidebar = () => {
     { to: '/usuarios', icon: Users, label: 'Usuários' },
     { to: '/setores', icon: Building2, label: 'Setores' },
     { to: '/relatorios', icon: BarChart3, label: 'Relatórios' },
+    { to: '/reunioes', icon: CalendarDays, label: 'Reunião' },
   ];
 
   const userLinks = [
     { to: '/meus-chamados', icon: FileText, label: 'Meus Chamados' },
     { to: '/novo-chamado', icon: Plus, label: 'Novo Chamado' },
+    { to: '/reunioes', icon: CalendarDays, label: 'Reunião' },
   ];
 
   const links = isAdmin ? adminLinks : userLinks;
