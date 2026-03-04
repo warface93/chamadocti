@@ -28,15 +28,22 @@ const statusStyles = {
   pending: 'bg-muted text-muted-foreground border-muted',
 };
 
-const categoryLabels = {
+const categoryLabels: Record<string, string> = {
   software: 'Software',
   hardware: 'Hardware',
   network: 'Rede',
   other: 'Outro',
+  internet: 'Internet',
+  computador: 'Computador',
+  telefone: 'Telefone',
+  conta: 'Conta',
+  sistema: 'Sistema',
+  outros: 'Outros',
 };
 
 const TicketCard = ({ ticket, user, onClick, isNewest }: TicketCardProps) => {
   const isCritical = ticket.status === 'critical';
+  const isResolved = ticket.status === 'resolved' && ticket.rating != null;
   // For admin view: show glow if is_new. For user view: only show if isNewest
   const shouldGlow = isNewest !== undefined ? isNewest && ticket.is_new : ticket.is_new;
 
@@ -47,7 +54,8 @@ const TicketCard = ({ ticket, user, onClick, isNewest }: TicketCardProps) => {
         'bg-card rounded-xl p-5 border cursor-pointer transition-all duration-300',
         shouldGlow && 'new-ticket-glow',
         isCritical ? 'glow-border-critical hover:bg-critical/5' : 'glow-border hover:bg-primary/5',
-        'card-hover-effect'
+        'card-hover-effect',
+        isResolved && 'opacity-40'
       )}
     >
       <div className="flex items-start justify-between mb-3">
