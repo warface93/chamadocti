@@ -114,10 +114,12 @@ const NovoChamado = () => {
                 <SelectValue placeholder="Selecione a categoria" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="software">Software</SelectItem>
-                <SelectItem value="hardware">Hardware</SelectItem>
-                <SelectItem value="network">Rede</SelectItem>
-                <SelectItem value="other">Outro</SelectItem>
+                <SelectItem value="internet">Internet</SelectItem>
+                <SelectItem value="computador">Computador</SelectItem>
+                <SelectItem value="telefone">Telefone</SelectItem>
+                <SelectItem value="conta">Conta</SelectItem>
+                <SelectItem value="sistema">Sistema</SelectItem>
+                <SelectItem value="outros">Outros</SelectItem>
               </SelectContent>
             </Select>
           </div>
