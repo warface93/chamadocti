@@ -2,7 +2,7 @@ export type UserRole = 'admin' | 'user';
 
 export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'critical' | 'pending';
 
-export type TicketCategory = 'software' | 'hardware' | 'network' | 'other';
+export type TicketCategory = 'software' | 'hardware' | 'network' | 'other' | 'internet' | 'computador' | 'telefone' | 'conta' | 'sistema' | 'outros';
 
 export interface User {
   id: string;

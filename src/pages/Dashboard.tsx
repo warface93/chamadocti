@@ -28,15 +28,17 @@ const Dashboard = () => {
   const resolvedTickets = tickets.filter(t => t.status === 'resolved').length;
   const criticalTickets = tickets.filter(t => t.status === 'critical').length;
 
+  const getUserById = (id: string) => users.find(u => u.id === id);
+
   const filteredTickets = tickets.filter(ticket => {
-    const matchesSearch = ticket.title.toLowerCase().includes(search.toLowerCase()) ||
+    const userName = getUserById(ticket.user_id)?.name?.toLowerCase() || '';
+    const matchesSearch = userName.includes(search.toLowerCase()) ||
+                         ticket.title.toLowerCase().includes(search.toLowerCase()) ||
                          (ticket.description?.toLowerCase().includes(search.toLowerCase()) ?? false);
     const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
     const matchesCategory = categoryFilter === 'all' || ticket.category === categoryFilter;
     return matchesSearch && matchesStatus && matchesCategory;
   });
-
-  const getUserById = (id: string) => users.find(u => u.id === id);
 
   const handleTicketClick = async (ticket: Ticket) => {
     // Mark as read when clicking
@@ -68,38 +70,27 @@ const Dashboard = () => {
 
       <div className="bg-card rounded-xl p-4 border border-border glow-border">
         <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
+          <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar chamados..."
+              placeholder="Buscar por nome do usuário..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10 bg-secondary/50"
             />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full md:w-48 bg-secondary/50">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os Status</SelectItem>
-              <SelectItem value="open">Aberto</SelectItem>
-              <SelectItem value="in_progress">Em Andamento</SelectItem>
-              <SelectItem value="resolved">Resolvido</SelectItem>
-              <SelectItem value="critical">Crítico</SelectItem>
-              <SelectItem value="pending">Pendente</SelectItem>
-            </SelectContent>
-          </Select>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger className="w-full md:w-48 bg-secondary/50">
               <SelectValue placeholder="Categoria" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas Categorias</SelectItem>
-              <SelectItem value="software">Software</SelectItem>
-              <SelectItem value="hardware">Hardware</SelectItem>
-              <SelectItem value="network">Rede</SelectItem>
-              <SelectItem value="other">Outro</SelectItem>
+              <SelectItem value="internet">Internet</SelectItem>
+              <SelectItem value="computador">Computador</SelectItem>
+              <SelectItem value="telefone">Telefone</SelectItem>
+              <SelectItem value="conta">Conta</SelectItem>
+              <SelectItem value="sistema">Sistema</SelectItem>
+              <SelectItem value="outros">Outros</SelectItem>
             </SelectContent>
           </Select>
         </div>
