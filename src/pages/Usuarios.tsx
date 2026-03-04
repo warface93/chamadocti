@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, UserX, Shield, ShieldOff, User as UserIcon, Phone, KeyRound } from 'lucide-react';
+import { Plus, Edit, Trash2, UserX, Shield, ShieldOff, User as UserIcon, Phone, KeyRound, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,6 +35,8 @@ const Usuarios = () => {
   const [passwordUserName, setPasswordUserName] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [isResettingPassword, setIsResettingPassword] = useState(false);
+
+  const [searchUser, setSearchUser] = useState('');
 
   if (!isAdmin) {
     return <Navigate to="/meus-chamados" replace />;
@@ -161,7 +163,10 @@ const Usuarios = () => {
     }
   };
 
+
   const getSectorName = (id: string) => sectors.find(s => s.id === id)?.name || 'N/A';
+
+  const filteredUsers = users.filter(u => u.name.toLowerCase().includes(searchUser.toLowerCase()));
 
   return (
     <div className="space-y-6">
@@ -304,8 +309,18 @@ const Usuarios = () => {
         </DialogContent>
       </Dialog>
 
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Pesquisar usuário pelo nome..."
+          value={searchUser}
+          onChange={(e) => setSearchUser(e.target.value)}
+          className="pl-10 bg-secondary/50"
+        />
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {users.map((user) => (
+        {filteredUsers.map((user) => (
           <div
             key={user.id}
             className={cn(
