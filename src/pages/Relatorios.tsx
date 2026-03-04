@@ -1,19 +1,29 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Star, ArrowLeft, User, Building2, Tag } from 'lucide-react';
+import { Star, ArrowLeft, User, Building2, Tag, TicketCheck, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { format } from 'date-fns';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { format, isToday, isThisMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
+const STATUS_COLORS: Record<string, string> = {
+  'Abertos': 'hsl(190, 95%, 50%)',
+  'Em Andamento': 'hsl(38, 92%, 50%)',
+  'Resolvidos': 'hsl(142, 76%, 36%)',
+  'Críticos': 'hsl(0, 84%, 60%)',
+  'Pendentes': 'hsl(217, 33%, 50%)',
+};
 
 const COLORS = ['hsl(190, 95%, 50%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(0, 84%, 60%)', 'hsl(217, 33%, 50%)'];
 
 type DrilldownType = 'sector' | 'user' | 'category' | null;
+type TicketFilter = 'total' | 'month' | 'day';
 
 const Relatorios = () => {
   const { isAdmin } = useAuth();
@@ -21,6 +31,21 @@ const Relatorios = () => {
   const [drilldownType, setDrilldownType] = useState<DrilldownType>(null);
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [activeStatusIndex, setActiveStatusIndex] = useState<number | null>(null);
+  const [activeBarIndex, setActiveBarIndex] = useState<number | null>(null);
+  const [ticketFilter, setTicketFilter] = useState<TicketFilter>('total');
+
+  // Filtered tickets count
+  const filteredTicketsCount = useMemo(() => {
+    switch (ticketFilter) {
+      case 'day':
+        return tickets.filter(t => isToday(new Date(t.created_at))).length;
+      case 'month':
+        return tickets.filter(t => isThisMonth(new Date(t.created_at))).length;
+      default:
+        return tickets.length;
+    }
+  }, [tickets, ticketFilter]);
 
   if (!isAdmin) {
     return <Navigate to="/meus-chamados" replace />;
@@ -36,6 +61,7 @@ const Relatorios = () => {
   const ratingDistribution = [1, 2, 3, 4, 5].map(rating => ({
     rating: `${rating} ★`,
     count: ratedTickets.filter(t => t.rating === rating).length,
+    ratingValue: rating,
   }));
 
   // Chamados por status
@@ -132,32 +158,71 @@ const Relatorios = () => {
     setIsDialogOpen(true);
   };
 
+  const handlePieClick = (_: any, index: number) => {
+    setActiveStatusIndex(prev => prev === index ? null : index);
+  };
+
+  const handleBarClick = (_: any, index: number) => {
+    setActiveBarIndex(prev => prev === index ? null : index);
+  };
+
   const drilldownTickets = getDrilldownTickets();
   const getUserById = (id: string) => users.find(u => u.id === id);
 
+  const filterLabel = ticketFilter === 'total' ? 'Total' : ticketFilter === 'month' ? 'Este Mês' : 'Hoje';
+
   return (
     <div className="space-y-6">
-      {/* Média geral */}
-      <div className="bg-card rounded-xl p-6 border border-border glow-card">
-        <h2 className="text-lg font-semibold text-foreground mb-4">Média Geral de Avaliações</h2>
-        <div className="flex items-center gap-4">
-          <span className="text-5xl font-bold gradient-text">{averageRating.toFixed(1)}</span>
-          <div className="flex">
-            {[1, 2, 3, 4, 5].map((value) => (
-              <Star
-                key={value}
-                className={cn(
-                  'w-8 h-8',
-                  averageRating >= value
-                    ? 'fill-warning text-warning'
-                    : 'text-muted-foreground'
-                )}
-              />
-            ))}
+      {/* Top stats bar */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Média geral */}
+        <div className="bg-card rounded-xl p-6 border border-border glow-card">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Média Geral de Avaliações</h2>
+          <div className="flex items-center gap-4">
+            <span className="text-5xl font-bold gradient-text">{averageRating.toFixed(1)}</span>
+            <div className="flex">
+              {[1, 2, 3, 4, 5].map((value) => (
+                <Star
+                  key={value}
+                  className={cn(
+                    'w-8 h-8',
+                    averageRating >= value
+                      ? 'fill-warning text-warning'
+                      : 'text-muted-foreground'
+                  )}
+                />
+              ))}
+            </div>
+            <span className="text-muted-foreground ml-4">
+              ({ratedTickets.length} avaliações)
+            </span>
           </div>
-          <span className="text-muted-foreground ml-4">
-            ({ratedTickets.length} avaliações)
-          </span>
+        </div>
+
+        {/* Total de chamados */}
+        <div className="bg-card rounded-xl p-6 border border-border glow-card">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-foreground">Total de Chamados</h2>
+            <Select value={ticketFilter} onValueChange={(v) => setTicketFilter(v as TicketFilter)}>
+              <SelectTrigger className="w-[140px] h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="total">Total</SelectItem>
+                <SelectItem value="month">Este Mês</SelectItem>
+                <SelectItem value="day">Hoje</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-5xl font-bold gradient-text">{filteredTicketsCount}</span>
+            <div className="flex items-center gap-2">
+              <TicketCheck className="w-8 h-8 text-primary" />
+            </div>
+            <span className="text-muted-foreground ml-4">
+              chamados ({filterLabel})
+            </span>
+          </div>
         </div>
       </div>
 
@@ -177,7 +242,22 @@ const Relatorios = () => {
                   borderRadius: '8px'
                 }} 
               />
-              <Bar dataKey="count" fill="hsl(190, 95%, 50%)" radius={[4, 4, 0, 0]} />
+              <Bar 
+                dataKey="count" 
+                radius={[4, 4, 0, 0]} 
+                onClick={handleBarClick}
+                cursor="pointer"
+              >
+                {ratingDistribution.map((entry, index) => (
+                  <Cell 
+                    key={`bar-cell-${index}`} 
+                    fill="hsl(38, 92%, 50%)"
+                    fillOpacity={activeBarIndex !== null && activeBarIndex !== index ? 0.2 : 1}
+                    stroke={activeBarIndex === index ? 'hsl(38, 92%, 70%)' : 'none'}
+                    strokeWidth={activeBarIndex === index ? 2 : 0}
+                  />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -197,9 +277,17 @@ const Relatorios = () => {
                 dataKey="value"
                 label={({ name, value }) => `${name}: ${value}`}
                 isAnimationActive={false}
+                onClick={handlePieClick}
+                cursor="pointer"
               >
-                {statusData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                {statusData.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={STATUS_COLORS[entry.name] || COLORS[index % COLORS.length]}
+                    fillOpacity={activeStatusIndex !== null && activeStatusIndex !== index ? 0.2 : 1}
+                    stroke={activeStatusIndex === index ? STATUS_COLORS[entry.name] : 'none'}
+                    strokeWidth={activeStatusIndex === index ? 3 : 0}
+                  />
                 ))}
               </Pie>
             </PieChart>
