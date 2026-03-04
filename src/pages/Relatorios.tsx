@@ -35,10 +35,6 @@ const Relatorios = () => {
   const [activeBarIndex, setActiveBarIndex] = useState<number | null>(null);
   const [ticketFilter, setTicketFilter] = useState<TicketFilter>('total');
 
-  if (!isAdmin) {
-    return <Navigate to="/meus-chamados" replace />;
-  }
-
   // Filtered tickets count
   const filteredTicketsCount = useMemo(() => {
     switch (ticketFilter) {
@@ -50,6 +46,10 @@ const Relatorios = () => {
         return tickets.length;
     }
   }, [tickets, ticketFilter]);
+
+  if (!isAdmin) {
+    return <Navigate to="/meus-chamados" replace />;
+  }
 
   // Calcular dados para gráficos
   const ratedTickets = tickets.filter(t => t.rating && t.rating > 0);
