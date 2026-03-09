@@ -37,6 +37,7 @@ const Usuarios = () => {
   const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   const [searchUser, setSearchUser] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user'>('all');
 
   if (!isAdmin) {
     return <Navigate to="/meus-chamados" replace />;
