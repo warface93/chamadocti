@@ -60,6 +60,7 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
     const { error } = await adminClient.auth.admin.updateUserById(user_id, {
       password: new_password,
+      user_metadata: { must_change_password: true },
     });
 
     if (error) {
