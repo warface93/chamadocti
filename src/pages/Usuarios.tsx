@@ -167,7 +167,9 @@ const Usuarios = () => {
 
   const getSectorName = (id: string) => sectors.find(s => s.id === id)?.name || 'N/A';
 
-  const filteredUsers = users.filter(u => u.name.toLowerCase().includes(searchUser.toLowerCase()));
+  const filteredUsers = users
+    .filter(u => u.name.toLowerCase().includes(searchUser.toLowerCase()))
+    .filter(u => roleFilter === 'all' ? true : u.role === roleFilter);
 
   return (
     <div className="space-y-6">
