@@ -244,15 +244,9 @@ const Relatorios = () => {
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(217, 33%, 20%)" />
               <XAxis dataKey="rating" stroke="hsl(215, 20%, 55%)" />
               <YAxis stroke="hsl(215, 20%, 55%)" />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'hsl(222, 47%, 8%)', 
-                  border: '1px solid hsl(217, 33%, 20%)',
-                  borderRadius: '8px'
-                }} 
-              />
+              <Tooltip content={() => null} />
               <Bar 
-                dataKey="count" 
+                dataKey="quantidade" 
                 radius={[4, 4, 0, 0]} 
                 onClick={handleBarClick}
                 cursor="pointer"
@@ -260,9 +254,9 @@ const Relatorios = () => {
                 {ratingDistribution.map((entry, index) => (
                   <Cell 
                     key={`bar-cell-${index}`} 
-                    fill="hsl(38, 92%, 50%)"
+                    fill={entry.color}
                     fillOpacity={activeBarIndex !== null && activeBarIndex !== index ? 0.2 : 1}
-                    stroke={activeBarIndex === index ? 'hsl(38, 92%, 70%)' : 'none'}
+                    stroke={activeBarIndex === index ? entry.color : 'none'}
                     strokeWidth={activeBarIndex === index ? 2 : 0}
                   />
                 ))}

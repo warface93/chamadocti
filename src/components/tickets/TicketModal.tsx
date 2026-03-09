@@ -102,7 +102,8 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
 
   const getUserById = (id: string) => users.find(u => u.id === id);
 
-  const canRate = !isAdmin && ticket.status === 'resolved' && ticket.user_id === currentUser?.id;
+  const alreadyRated = ticket.rating !== null && ticket.rating !== undefined && ticket.rating > 0;
+  const canRate = !isAdmin && ticket.status === 'resolved' && ticket.user_id === currentUser?.id && !alreadyRated;
 
   return (
     <Dialog open onOpenChange={onClose}>

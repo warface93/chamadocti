@@ -262,7 +262,14 @@ const ReuniaoAdmin = () => {
                   ))}
                 </div>
                 {selectedMeeting.other_description && (
-                  <p className="text-xs text-muted-foreground mt-1">Outros: {selectedMeeting.other_description}</p>
+                  <div className="mt-2">
+                    <Badge variant="outline" className="border-primary/50 text-primary">
+                      Outros
+                    </Badge>
+                    <p className="text-sm text-foreground mt-1 p-2 rounded bg-primary/5 border border-primary/20">
+                      {selectedMeeting.other_description}
+                    </p>
+                  </div>
                 )}
               </div>
 
