@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, UserX, Shield, ShieldOff, User as UserIcon, Phone, KeyRound, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, UserX, Shield, ShieldOff, User as UserIcon, Phone, KeyRound, Search, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,6 +37,7 @@ const Usuarios = () => {
   const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   const [searchUser, setSearchUser] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user'>('all');
 
   if (!isAdmin) {
     return <Navigate to="/meus-chamados" replace />;
@@ -166,7 +167,9 @@ const Usuarios = () => {
 
   const getSectorName = (id: string) => sectors.find(s => s.id === id)?.name || 'N/A';
 
-  const filteredUsers = users.filter(u => u.name.toLowerCase().includes(searchUser.toLowerCase()));
+  const filteredUsers = users
+    .filter(u => u.name.toLowerCase().includes(searchUser.toLowerCase()))
+    .filter(u => roleFilter === 'all' ? true : u.role === roleFilter);
 
   return (
     <div className="space-y-6">
@@ -309,14 +312,33 @@ const Usuarios = () => {
         </DialogContent>
       </Dialog>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Pesquisar usuário pelo nome..."
-          value={searchUser}
-          onChange={(e) => setSearchUser(e.target.value)}
-          className="pl-10 bg-secondary/50"
-        />
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Pesquisar usuário pelo nome..."
+            value={searchUser}
+            onChange={(e) => setSearchUser(e.target.value)}
+            className="pl-10 bg-secondary/50"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-muted-foreground" />
+          {[
+            { value: 'all' as const, label: 'Todos' },
+            { value: 'admin' as const, label: 'Administradores' },
+            { value: 'user' as const, label: 'Usuários' },
+          ].map(f => (
+            <Button
+              key={f.value}
+              variant={roleFilter === f.value ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setRoleFilter(f.value)}
+            >
+              {f.label}
+            </Button>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

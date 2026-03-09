@@ -57,11 +57,20 @@ const Relatorios = () => {
     ? ratedTickets.reduce((acc, t) => acc + (t.rating || 0), 0) / ratedTickets.length 
     : 0;
 
+  const RATING_BAR_COLORS = [
+    'hsl(0, 84%, 60%)',     // 1 star - red
+    'hsl(25, 95%, 53%)',    // 2 stars - orange
+    'hsl(38, 92%, 50%)',    // 3 stars - yellow/amber
+    'hsl(142, 76%, 36%)',   // 4 stars - green
+    'hsl(190, 95%, 50%)',   // 5 stars - cyan/blue
+  ];
+
   // Distribuição de avaliações
-  const ratingDistribution = [1, 2, 3, 4, 5].map(rating => ({
+  const ratingDistribution = [1, 2, 3, 4, 5].map((rating, i) => ({
     rating: `${rating} ★`,
-    count: ratedTickets.filter(t => t.rating === rating).length,
+    quantidade: ratedTickets.filter(t => t.rating === rating).length,
     ratingValue: rating,
+    color: RATING_BAR_COLORS[i],
   }));
 
   // Chamados por status
@@ -235,15 +244,9 @@ const Relatorios = () => {
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(217, 33%, 20%)" />
               <XAxis dataKey="rating" stroke="hsl(215, 20%, 55%)" />
               <YAxis stroke="hsl(215, 20%, 55%)" />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'hsl(222, 47%, 8%)', 
-                  border: '1px solid hsl(217, 33%, 20%)',
-                  borderRadius: '8px'
-                }} 
-              />
+              <Tooltip content={() => null} />
               <Bar 
-                dataKey="count" 
+                dataKey="quantidade" 
                 radius={[4, 4, 0, 0]} 
                 onClick={handleBarClick}
                 cursor="pointer"
@@ -251,9 +254,9 @@ const Relatorios = () => {
                 {ratingDistribution.map((entry, index) => (
                   <Cell 
                     key={`bar-cell-${index}`} 
-                    fill="hsl(38, 92%, 50%)"
+                    fill={entry.color}
                     fillOpacity={activeBarIndex !== null && activeBarIndex !== index ? 0.2 : 1}
-                    stroke={activeBarIndex === index ? 'hsl(38, 92%, 70%)' : 'none'}
+                    stroke={activeBarIndex === index ? entry.color : 'none'}
                     strokeWidth={activeBarIndex === index ? 2 : 0}
                   />
                 ))}
