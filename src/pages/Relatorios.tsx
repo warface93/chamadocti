@@ -57,11 +57,20 @@ const Relatorios = () => {
     ? ratedTickets.reduce((acc, t) => acc + (t.rating || 0), 0) / ratedTickets.length 
     : 0;
 
+  const RATING_BAR_COLORS = [
+    'hsl(0, 84%, 60%)',     // 1 star - red
+    'hsl(25, 95%, 53%)',    // 2 stars - orange
+    'hsl(38, 92%, 50%)',    // 3 stars - yellow/amber
+    'hsl(142, 76%, 36%)',   // 4 stars - green
+    'hsl(190, 95%, 50%)',   // 5 stars - cyan/blue
+  ];
+
   // Distribuição de avaliações
-  const ratingDistribution = [1, 2, 3, 4, 5].map(rating => ({
+  const ratingDistribution = [1, 2, 3, 4, 5].map((rating, i) => ({
     rating: `${rating} ★`,
-    count: ratedTickets.filter(t => t.rating === rating).length,
+    quantidade: ratedTickets.filter(t => t.rating === rating).length,
     ratingValue: rating,
+    color: RATING_BAR_COLORS[i],
   }));
 
   // Chamados por status
