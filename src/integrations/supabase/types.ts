@@ -77,9 +77,12 @@ export type Database = {
           created_at: string
           end_time: string
           id: string
+          link_creator: string | null
+          link_platform: string | null
           location: string
           meeting_date: string
           other_description: string | null
+          ramal: string | null
           start_time: string
           status: string
           updated_at: string
@@ -89,9 +92,12 @@ export type Database = {
           created_at?: string
           end_time: string
           id?: string
+          link_creator?: string | null
+          link_platform?: string | null
           location: string
           meeting_date: string
           other_description?: string | null
+          ramal?: string | null
           start_time: string
           status?: string
           updated_at?: string
@@ -101,9 +107,12 @@ export type Database = {
           created_at?: string
           end_time?: string
           id?: string
+          link_creator?: string | null
+          link_platform?: string | null
           location?: string
           meeting_date?: string
           other_description?: string | null
+          ramal?: string | null
           start_time?: string
           status?: string
           updated_at?: string
