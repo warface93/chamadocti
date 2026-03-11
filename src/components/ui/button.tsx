@@ -18,6 +18,7 @@ const buttonVariants = cva(
         glow: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_20px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_30px_hsl(var(--primary)/0.7)]",
         success: "bg-success text-success-foreground hover:bg-success/90 shadow-lg shadow-success/25",
         warning: "bg-warning text-warning-foreground hover:bg-warning/90 shadow-lg shadow-warning/25",
+        finalize: "bg-amber-500 text-white hover:bg-amber-600 shadow-lg shadow-amber-500/25",
         critical: "bg-critical text-critical-foreground hover:bg-critical/90 shadow-lg shadow-critical/25",
       },
       size: {
