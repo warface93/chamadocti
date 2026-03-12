@@ -58,29 +58,6 @@ const Dashboard = () => {
 
   const totalPages = Math.max(1, Math.ceil(filteredTickets.length / ITEMS_PER_PAGE));
   const paginatedTickets = filteredTickets.slice(
-    const filtered = tickets.filter(ticket => {
-      const userName = getUserById(ticket.user_id)?.name?.toLowerCase() || '';
-      const matchesSearch = userName.includes(search.toLowerCase()) ||
-                           ticket.title.toLowerCase().includes(search.toLowerCase()) ||
-                           (ticket.description?.toLowerCase().includes(search.toLowerCase()) ?? false);
-      const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
-      const matchesCategory = categoryFilter === 'all' || ticket.category === categoryFilter;
-      return matchesSearch && matchesStatus && matchesCategory;
-    });
-
-    // Sort: non-resolved first (priority), then by created_at desc
-    filtered.sort((a, b) => {
-      const aResolved = a.status === 'resolved' ? 1 : 0;
-      const bResolved = b.status === 'resolved' ? 1 : 0;
-      if (aResolved !== bResolved) return aResolved - bResolved;
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-
-    return filtered;
-  }, [tickets, search, statusFilter, categoryFilter, users]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredTickets.length / ITEMS_PER_PAGE));
-  const paginatedTickets = filteredTickets.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
