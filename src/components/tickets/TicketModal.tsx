@@ -8,11 +8,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Star, Save, Paperclip } from 'lucide-react';
+import { Send, Star, Save, Paperclip, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface TicketModalProps {
   ticket: Ticket;
@@ -59,10 +60,21 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
   const ticketMessages = messages.filter(m => m.ticket_id === ticket.id);
 
   const handleSaveStatus = async () => {
-    if (!hasStatusChanged) return;
+    if (!hasStatusChanged || !currentUser) return;
     setIsSavingStatus(true);
     try {
-      await updateTicket(ticket.id, { status: selectedStatus });
+      // Update status and record who changed it
+      const { error } = await supabase
+        .from('tickets')
+        .update({
+          status: selectedStatus,
+          updated_at: new Date().toISOString(),
+          status_changed_by: currentUser.name,
+          status_changed_at: new Date().toISOString(),
+        })
+        .eq('id', ticket.id);
+
+      if (error) throw error;
       toast.success('Status atualizado!');
     } catch (error) {
       toast.error('Erro ao atualizar status');
@@ -104,6 +116,10 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
 
   const alreadyRated = ticket.rating !== null && ticket.rating !== undefined && ticket.rating > 0;
   const canRate = !isAdmin && ticket.status === 'resolved' && ticket.user_id === currentUser?.id && !alreadyRated;
+
+  // Get status_changed_by from the ticket (may come from DB)
+  const statusChangedBy = (ticket as any).status_changed_by;
+  const statusChangedAt = (ticket as any).status_changed_at;
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -147,6 +163,19 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
               {format(new Date(ticket.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
             </span>
           </div>
+
+          {/* Status change audit */}
+          {statusChangedBy && (
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/5 border border-primary/20">
+              <UserCheck className="w-4 h-4 text-primary" />
+              <span className="text-xs text-muted-foreground">
+                Atendido por: <span className="text-foreground font-medium">{statusChangedBy}</span>
+                {statusChangedAt && (
+                  <> em {format(new Date(statusChangedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</>
+                )}
+              </span>
+            </div>
+          )}
 
           {isAdmin && (
             <div className="flex items-center gap-4">
