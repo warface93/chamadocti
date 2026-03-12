@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { CalendarIcon, Send, Clock, MapPin, Monitor, Edit, CheckCircle, AlertTriangle, Phone } from 'lucide-react';
+import { CalendarIcon, Send, Clock, MapPin, Monitor, Edit, CheckCircle, AlertTriangle, Phone, History } from 'lucide-react';
 import { format, isAfter, parse, isToday, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -40,7 +40,11 @@ const LINK_PLATFORMS = [
   { id: 'meet', label: 'MEET' },
 ];
 
+const MIN_TIME = '07:30';
+const MAX_TIME = '13:30';
+
 interface ExistingMeeting {
+  id?: string;
   meeting_date: string;
   start_time: string;
   end_time: string;
@@ -74,6 +78,10 @@ const isMeetingOverdue = (meeting: UserMeeting) => {
   return isAfter(now, endDateTime);
 };
 
+const isTimeInRange = (time: string) => {
+  return time >= MIN_TIME && time <= MAX_TIME;
+};
+
 const ReuniaoUsuario = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -88,6 +96,7 @@ const ReuniaoUsuario = () => {
   const [linkCreator, setLinkCreator] = useState('');
   const [existingMeetings, setExistingMeetings] = useState<ExistingMeeting[]>([]);
   const [myMeetings, setMyMeetings] = useState<UserMeeting[]>([]);
+  const [myHistory, setMyHistory] = useState<UserMeeting[]>([]);
   const [allActiveMeetings, setAllActiveMeetings] = useState<UserMeeting[]>([]);
   const [loading, setLoading] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -108,7 +117,6 @@ const ReuniaoUsuario = () => {
     fetchMyMeetings();
     fetchAllActiveMeetings();
 
-    // Realtime subscription for meetings
     const channel = supabase
       .channel('meetings-user-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'meetings' }, () => {
@@ -146,7 +154,7 @@ const ReuniaoUsuario = () => {
   const fetchExistingMeetings = async () => {
     const { data } = await supabase
       .from('meetings')
-      .select('meeting_date, start_time, end_time, location')
+      .select('id, meeting_date, start_time, end_time, location')
       .eq('status', 'em_uso');
     if (data) setExistingMeetings(data);
   };
@@ -168,8 +176,10 @@ const ReuniaoUsuario = () => {
           equipment: eqData?.map(e => e.equipment) || [],
         });
       }
-      // For user: hide finalized meetings
+      // Active meetings (not finalized)
       setMyMeetings(enriched.filter(m => m.status !== 'finalizado'));
+      // History (finalized meetings)
+      setMyHistory(enriched.filter(m => m.status === 'finalizado'));
     }
   };
 
@@ -180,21 +190,23 @@ const ReuniaoUsuario = () => {
     const dateStr = format(currentDate, 'yyyy-MM-dd');
     return existingMeetings.some(
       m => m.meeting_date === dateStr && m.location === forLocation &&
-        time >= m.start_time && time < m.end_time
+        time >= m.start_time && time < m.end_time &&
+        (!excludeMeetingId || m.id !== excludeMeetingId)
     );
   };
 
-  const isLocationAvailable = (loc: string, sTime?: string, eTime?: string, selectedDate?: Date) => {
+  const isLocationAvailable = (loc: string, sTime?: string, eTime?: string, selectedDate?: Date, excludeMeetingId?: string) => {
     const d = selectedDate || date;
-    const st = sTime || startTime;
-    const et = eTime || endTime;
+    const st = sTime || startTime || customStartTime;
+    const et = eTime || endTime || customEndTime;
     if (!d || !st || !et) return true;
     const dateStr = format(d, 'yyyy-MM-dd');
     return !existingMeetings.some(
       m => m.meeting_date === dateStr && m.location === loc &&
         ((st >= m.start_time && st < m.end_time) ||
          (et > m.start_time && et <= m.end_time) ||
-         (st <= m.start_time && et >= m.end_time))
+         (st <= m.start_time && et >= m.end_time)) &&
+        (!excludeMeetingId || m.id !== excludeMeetingId)
     );
   };
 
@@ -210,7 +222,6 @@ const ReuniaoUsuario = () => {
       }
       return;
     }
-    // If selecting other equipment, remove "sem_equipamentos"
     setSelectedEquipment(prev => {
       const filtered = prev.filter(e => e !== 'sem_equipamentos');
       return filtered.includes(equipmentId)
@@ -228,6 +239,27 @@ const ReuniaoUsuario = () => {
     return selected;
   };
 
+  const validateTimeRange = (time: string) => {
+    if (!time) return true;
+    return isTimeInRange(time);
+  };
+
+  const handleCustomStartTimeChange = (value: string) => {
+    setCustomStartTime(value);
+    setStartTime('');
+    if (value && /^\d{2}:\d{2}$/.test(value) && !isTimeInRange(value)) {
+      toast({ title: 'Horário fora do intervalo permitido (07:30 - 13:30)', variant: 'destructive' });
+    }
+  };
+
+  const handleCustomEndTimeChange = (value: string) => {
+    setCustomEndTime(value);
+    setEndTime('');
+    if (value && /^\d{2}:\d{2}$/.test(value) && !isTimeInRange(value)) {
+      toast({ title: 'Horário fora do intervalo permitido (07:30 - 13:30)', variant: 'destructive' });
+    }
+  };
+
   const handleSubmit = async () => {
     const effectiveStart = getEffectiveTime(startTime, customStartTime);
     const effectiveEnd = getEffectiveTime(endTime, customEndTime);
@@ -242,8 +274,19 @@ const ReuniaoUsuario = () => {
       return;
     }
 
+    if (!isTimeInRange(effectiveStart) || !isTimeInRange(effectiveEnd)) {
+      toast({ title: 'Horário deve estar entre 07:30 e 13:30', variant: 'destructive' });
+      return;
+    }
+
     if (effectiveStart >= effectiveEnd) {
       toast({ title: 'Horário de término deve ser após o início', variant: 'destructive' });
+      return;
+    }
+
+    // Conflict check for manually typed times
+    if (!isLocationAvailable(location, effectiveStart, effectiveEnd, date)) {
+      toast({ title: 'Conflito de horário! Já existe uma reunião neste local e horário.', variant: 'destructive' });
       return;
     }
 
@@ -336,22 +379,17 @@ const ReuniaoUsuario = () => {
       return;
     }
 
+    if (!isTimeInRange(editStartTime) || !isTimeInRange(editEndTime)) {
+      toast({ title: 'Horário deve estar entre 07:30 e 13:30', variant: 'destructive' });
+      return;
+    }
+
     if (editStartTime >= editEndTime) {
       toast({ title: 'Horário de término deve ser após o início', variant: 'destructive' });
       return;
     }
 
-    // Check availability (excluding current meeting)
     const dateStr = format(editDate, 'yyyy-MM-dd');
-    const conflict = existingMeetings.some(
-      m => m.meeting_date === dateStr && m.location === editLocation &&
-        ((editStartTime >= m.start_time && editStartTime < m.end_time) ||
-         (editEndTime > m.start_time && editEndTime <= m.end_time) ||
-         (editStartTime <= m.start_time && editEndTime >= m.end_time))
-    );
-
-    // We need to exclude the current meeting from the conflict check
-    // Re-fetch without the current meeting
     const { data: otherMeetings } = await supabase
       .from('meetings')
       .select('meeting_date, start_time, end_time, location')
@@ -395,6 +433,10 @@ const ReuniaoUsuario = () => {
   const getEquipmentLabel = (id: string) =>
     EQUIPMENT_OPTIONS.find(e => e.id === id)?.label || LINK_PLATFORMS.find(p => p.id === id)?.label || id;
 
+  // Compute effective times for location availability display
+  const effectiveStartForDisplay = getEffectiveTime(startTime, customStartTime);
+  const effectiveEndForDisplay = getEffectiveTime(endTime, customEndTime);
+
   return (
     <div className="space-y-6">
       <Card className="border-border bg-card">
@@ -429,9 +471,12 @@ const ReuniaoUsuario = () => {
               </Popover>
             </div>
 
-            {/* Start Time - Select or Type */}
+            {/* Start Time */}
             <div className="space-y-2">
-              <Label>Horário Início</Label>
+              <Label className="flex items-center gap-1">
+                <Clock className="w-3 h-3 text-foreground" />
+                Horário Início
+              </Label>
               <div className="flex gap-2">
                 <Select value={startTime} onValueChange={(v) => { setStartTime(v); setCustomStartTime(''); }}>
                   <SelectTrigger className="flex-1">
@@ -454,16 +499,21 @@ const ReuniaoUsuario = () => {
                 <Input
                   type="time"
                   value={customStartTime}
-                  onChange={(e) => { setCustomStartTime(e.target.value); setStartTime(''); }}
+                  onChange={(e) => handleCustomStartTimeChange(e.target.value)}
+                  min="07:30"
+                  max="13:30"
                   className="w-24"
                   placeholder="HH:MM"
                 />
               </div>
             </div>
 
-            {/* End Time - Select or Type */}
+            {/* End Time */}
             <div className="space-y-2">
-              <Label>Horário Término</Label>
+              <Label className="flex items-center gap-1">
+                <Clock className="w-3 h-3 text-foreground" />
+                Horário Término
+              </Label>
               <div className="flex gap-2">
                 <Select value={endTime} onValueChange={(v) => { setEndTime(v); setCustomEndTime(''); }}>
                   <SelectTrigger className="flex-1">
@@ -487,7 +537,9 @@ const ReuniaoUsuario = () => {
                 <Input
                   type="time"
                   value={customEndTime}
-                  onChange={(e) => { setCustomEndTime(e.target.value); setEndTime(''); }}
+                  onChange={(e) => handleCustomEndTimeChange(e.target.value)}
+                  min="07:30"
+                  max="13:30"
                   className="w-24"
                   placeholder="HH:MM"
                 />
@@ -503,12 +555,12 @@ const ReuniaoUsuario = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {LOCATIONS.map(loc => {
-                    const available = isLocationAvailable(loc);
+                    const available = isLocationAvailable(loc, effectiveStartForDisplay, effectiveEndForDisplay, date);
                     return (
                       <SelectItem key={loc} value={loc} disabled={!available}>
                         <span className="flex items-center gap-2">
                           {loc}
-                          {!available && <span className="text-destructive text-xs">Indisponível</span>}
+                          {!available && <span className="text-destructive text-xs font-semibold">Indisponível</span>}
                         </span>
                       </SelectItem>
                     );
@@ -642,7 +694,6 @@ const ReuniaoUsuario = () => {
                       </p>
                     )}
 
-                    {/* Edit & Finalize buttons - only for em_uso meetings owned by user */}
                     {m.status === 'em_uso' && m.user_id === user?.id && (
                       <div className="flex gap-2 pt-2 border-t border-border">
                         <Button size="sm" variant="outline" onClick={() => openEditDialog(m)}>
@@ -660,6 +711,45 @@ const ReuniaoUsuario = () => {
           </div>
         )}
       </div>
+
+      {/* Finalized meetings history */}
+      {myHistory.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <History className="w-5 h-5 text-muted-foreground" />
+            Histórico de Reuniões Finalizadas
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {myHistory.map(m => (
+              <Card key={m.id} className="border-border bg-muted/20 opacity-70">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-foreground">
+                      {format(new Date(m.meeting_date + 'T00:00:00'), 'dd/MM/yyyy')}
+                    </span>
+                    <Badge variant="secondary">Finalizada</Badge>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" /> {m.start_time} - {m.end_time}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-3 h-3" /> {m.location}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {m.equipment.map(eq => (
+                      <Badge key={eq} variant="outline" className="text-xs">
+                        {getEquipmentLabel(eq)}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* All active meetings */}
       <div className="space-y-4">
@@ -747,6 +837,8 @@ const ReuniaoUsuario = () => {
                   type="time"
                   value={editStartTime}
                   onChange={(e) => setEditStartTime(e.target.value)}
+                  min="07:30"
+                  max="13:30"
                 />
               </div>
               <div className="space-y-2">
@@ -755,6 +847,8 @@ const ReuniaoUsuario = () => {
                   type="time"
                   value={editEndTime}
                   onChange={(e) => setEditEndTime(e.target.value)}
+                  min="07:30"
+                  max="13:30"
                 />
               </div>
             </div>
@@ -765,9 +859,19 @@ const ReuniaoUsuario = () => {
                   <SelectValue placeholder="Local" />
                 </SelectTrigger>
                 <SelectContent>
-                  {LOCATIONS.map(loc => (
-                    <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                  ))}
+                  {LOCATIONS.map(loc => {
+                    const available = editDate && editStartTime && editEndTime
+                      ? isLocationAvailable(loc, editStartTime, editEndTime, editDate, editingMeeting?.id)
+                      : true;
+                    return (
+                      <SelectItem key={loc} value={loc} disabled={!available}>
+                        <span className="flex items-center gap-2">
+                          {loc}
+                          {!available && <span className="text-destructive text-xs font-semibold">Indisponível</span>}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>

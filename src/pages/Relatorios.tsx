@@ -3,7 +3,7 @@ import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Star, ArrowLeft, User, Building2, Tag, TicketCheck, Calendar } from 'lucide-react';
+import { Star, ArrowLeft, User, Building2, Tag, TicketCheck, Calendar, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -22,6 +22,30 @@ const STATUS_COLORS: Record<string, string> = {
 
 const COLORS = ['hsl(190, 95%, 50%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(0, 84%, 60%)', 'hsl(217, 33%, 50%)'];
 
+const RANKING_COLORS = [
+  'hsl(190, 95%, 50%)',
+  'hsl(142, 76%, 36%)',
+  'hsl(38, 92%, 50%)',
+  'hsl(0, 84%, 60%)',
+  'hsl(270, 70%, 55%)',
+  'hsl(25, 95%, 53%)',
+  'hsl(330, 80%, 50%)',
+  'hsl(200, 80%, 40%)',
+];
+
+const CATEGORY_LABELS: Record<string, string> = {
+  internet: 'Internet',
+  computador: 'Computador',
+  telefone: 'Telefone',
+  conta: 'Conta',
+  sistema: 'Sistema',
+  outros: 'Outros',
+  software: 'Software',
+  hardware: 'Hardware',
+  network: 'Rede',
+  other: 'Outro',
+};
+
 type DrilldownType = 'sector' | 'user' | 'category' | null;
 type TicketFilter = 'total' | 'month' | 'day';
 
@@ -35,7 +59,6 @@ const Relatorios = () => {
   const [activeBarIndex, setActiveBarIndex] = useState<number | null>(null);
   const [ticketFilter, setTicketFilter] = useState<TicketFilter>('total');
 
-  // Filtered tickets count
   const filteredTicketsCount = useMemo(() => {
     switch (ticketFilter) {
       case 'day':
@@ -47,25 +70,51 @@ const Relatorios = () => {
     }
   }, [tickets, ticketFilter]);
 
+  // Ranking: Top 8 setores que mais solicitam chamados
+  const sectorTicketRanking = useMemo(() => {
+    const sectorCounts = sectors.map(sector => {
+      const sectorUsers = users.filter(u => u.sector_id === sector.id);
+      const sectorUserIds = sectorUsers.map(u => u.id);
+      const count = tickets.filter(t => sectorUserIds.includes(t.user_id)).length;
+      return { name: sector.name, count };
+    })
+    .filter(s => s.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8);
+    return sectorCounts;
+  }, [sectors, users, tickets]);
+
+  // Ranking: Top 8 categorias que mais aparecem
+  const categoryTicketRanking = useMemo(() => {
+    const catMap: Record<string, number> = {};
+    tickets.forEach(t => {
+      const label = CATEGORY_LABELS[t.category] || t.category;
+      catMap[label] = (catMap[label] || 0) + 1;
+    });
+    return Object.entries(catMap)
+      .map(([name, count]) => ({ name, count }))
+      .filter(c => c.count > 0)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
+  }, [tickets]);
+
   if (!isAdmin) {
     return <Navigate to="/meus-chamados" replace />;
   }
 
-  // Calcular dados para gráficos
   const ratedTickets = tickets.filter(t => t.rating && t.rating > 0);
   const averageRating = ratedTickets.length > 0 
     ? ratedTickets.reduce((acc, t) => acc + (t.rating || 0), 0) / ratedTickets.length 
     : 0;
 
   const RATING_BAR_COLORS = [
-    'hsl(0, 84%, 60%)',     // 1 star - red
-    'hsl(25, 95%, 53%)',    // 2 stars - orange
-    'hsl(38, 92%, 50%)',    // 3 stars - yellow/amber
-    'hsl(142, 76%, 36%)',   // 4 stars - green
-    'hsl(190, 95%, 50%)',   // 5 stars - cyan/blue
+    'hsl(0, 84%, 60%)',
+    'hsl(25, 95%, 53%)',
+    'hsl(38, 92%, 50%)',
+    'hsl(142, 76%, 36%)',
+    'hsl(190, 95%, 50%)',
   ];
 
-  // Distribuição de avaliações
   const ratingDistribution = [1, 2, 3, 4, 5].map((rating, i) => ({
     rating: `${rating} ★`,
     quantidade: ratedTickets.filter(t => t.rating === rating).length,
@@ -73,7 +122,6 @@ const Relatorios = () => {
     color: RATING_BAR_COLORS[i],
   }));
 
-  // Chamados por status
   const statusData = [
     { name: 'Abertos', value: tickets.filter(t => t.status === 'open').length },
     { name: 'Em Andamento', value: tickets.filter(t => t.status === 'in_progress').length },
@@ -82,7 +130,6 @@ const Relatorios = () => {
     { name: 'Pendentes', value: tickets.filter(t => t.status === 'pending').length },
   ].filter(d => d.value > 0);
 
-  // Chamados por categoria
   const categoryData = [
     { name: 'Software', key: 'software', value: tickets.filter(t => t.category === 'software').length },
     { name: 'Hardware', key: 'hardware', value: tickets.filter(t => t.category === 'hardware').length },
@@ -106,7 +153,6 @@ const Relatorios = () => {
     };
   }).filter(s => s.count > 0);
 
-  // Avaliações por usuário
   const userRatings = users.map(user => {
     const userTickets = ratedTickets.filter(t => t.user_id === user.id);
     const avgRating = userTickets.length > 0
@@ -120,10 +166,8 @@ const Relatorios = () => {
     };
   }).filter(u => u.count > 0);
 
-  // Get drilldown data
   const getDrilldownTickets = () => {
     if (!selectedItem) return [];
-    
     switch (drilldownType) {
       case 'sector': {
         const sectorUsers = users.filter(u => u.sector_id === selectedItem);
@@ -141,7 +185,6 @@ const Relatorios = () => {
 
   const getDrilldownTitle = () => {
     if (!selectedItem) return '';
-    
     switch (drilldownType) {
       case 'sector':
         return `Avaliações - ${sectors.find(s => s.id === selectedItem)?.name || 'Setor'}`;
@@ -184,7 +227,6 @@ const Relatorios = () => {
     <div className="space-y-6">
       {/* Top stats bar */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Média geral */}
         <div className="bg-card rounded-xl p-6 border border-border glow-card">
           <h2 className="text-lg font-semibold text-foreground mb-4">Média Geral de Avaliações</h2>
           <div className="flex items-center gap-4">
@@ -208,7 +250,6 @@ const Relatorios = () => {
           </div>
         </div>
 
-        {/* Total de chamados */}
         <div className="bg-card rounded-xl p-6 border border-border glow-card">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-foreground">Total de Chamados</h2>
@@ -297,7 +338,87 @@ const Relatorios = () => {
           </ResponsiveContainer>
         </div>
 
-        {/* Chamados por categoria - CLICÁVEL */}
+        {/* Ranking: Setores que mais solicitam chamados */}
+        <div className="bg-card rounded-xl p-6 border border-border glow-card">
+          <div className="flex items-center gap-2 mb-4">
+            <Trophy className="w-5 h-5 text-warning" />
+            <h2 className="text-lg font-semibold text-foreground">Top Setores - Chamados</h2>
+          </div>
+          {sectorTicketRanking.length > 0 ? (
+            <div className="space-y-2">
+              {sectorTicketRanking.map((item, index) => {
+                const maxCount = sectorTicketRanking[0]?.count || 1;
+                const widthPct = Math.max(10, (item.count / maxCount) * 100);
+                return (
+                  <div key={item.name} className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-muted-foreground w-5 text-right">{index + 1}°</span>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-foreground truncate">{item.name}</span>
+                        <span className="text-sm font-bold text-foreground ml-2">{item.count}</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-secondary/30 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${widthPct}%`,
+                            backgroundColor: RANKING_COLORS[index % RANKING_COLORS.length],
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+              Nenhum dado disponível
+            </div>
+          )}
+        </div>
+
+        {/* Ranking: Categorias que mais aparecem */}
+        <div className="bg-card rounded-xl p-6 border border-border glow-card">
+          <div className="flex items-center gap-2 mb-4">
+            <Tag className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold text-foreground">Top Categorias - Chamados</h2>
+          </div>
+          {categoryTicketRanking.length > 0 ? (
+            <div className="space-y-2">
+              {categoryTicketRanking.map((item, index) => {
+                const maxCount = categoryTicketRanking[0]?.count || 1;
+                const widthPct = Math.max(10, (item.count / maxCount) * 100);
+                return (
+                  <div key={item.name} className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-muted-foreground w-5 text-right">{index + 1}°</span>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-foreground truncate">{item.name}</span>
+                        <span className="text-sm font-bold text-foreground ml-2">{item.count}</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-secondary/30 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${widthPct}%`,
+                            backgroundColor: RANKING_COLORS[index % RANKING_COLORS.length],
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+              Nenhum dado disponível
+            </div>
+          )}
+        </div>
+
+        {/* Avaliações por Categoria */}
         <div className="bg-card rounded-xl p-6 border border-border glow-card">
           <div className="flex items-center gap-2 mb-4">
             <Tag className="w-5 h-5 text-primary" />
@@ -335,7 +456,7 @@ const Relatorios = () => {
           </div>
         </div>
 
-        {/* Avaliações por setor - CLICÁVEL */}
+        {/* Avaliações por setor */}
         <div className="bg-card rounded-xl p-6 border border-border glow-card">
           <div className="flex items-center gap-2 mb-4">
             <Building2 className="w-5 h-5 text-primary" />
@@ -373,7 +494,7 @@ const Relatorios = () => {
           )}
         </div>
 
-        {/* Avaliações por usuário - CLICÁVEL */}
+        {/* Avaliações por usuário */}
         <div className="bg-card rounded-xl p-6 border border-border glow-card lg:col-span-2">
           <div className="flex items-center gap-2 mb-4">
             <User className="w-5 h-5 text-primary" />

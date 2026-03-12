@@ -12,7 +12,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Plus, Edit, Trash2, Power, Monitor, Users, DollarSign, 
   ShoppingBag, Wrench, Headphones, Building, FileText, 
-  Mail, Phone, Package, Settings
+  Mail, Phone, Package, Settings, Search,
+  Flame, Zap, Truck, Crown, Landmark, Droplets, Scale
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -30,6 +31,13 @@ const iconOptions = [
   { name: 'Phone', icon: Phone },
   { name: 'Package', icon: Package },
   { name: 'Settings', icon: Settings },
+  { name: 'Flame', icon: Flame },        // GÁS
+  { name: 'Zap', icon: Zap },            // ENERGIA
+  { name: 'Truck', icon: Truck },         // TRANSPORTES
+  { name: 'Crown', icon: Crown },         // DIRETORIA
+  { name: 'Landmark', icon: Landmark },   // PRESIDÊNCIA
+  { name: 'Droplets', icon: Droplets },   // SANEAMENTO
+  { name: 'Scale', icon: Scale },         // JURÍDICO
 ];
 
 const getIcon = (iconName: string) => {
@@ -43,6 +51,7 @@ const Setores = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSector, setEditingSector] = useState<Sector | null>(null);
   const [selectedSector, setSelectedSector] = useState<Sector | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     icon: 'Monitor',
@@ -52,18 +61,32 @@ const Setores = () => {
     return <Navigate to="/meus-chamados" replace />;
   }
 
+  const filteredSectors = sectors.filter(s =>
+    s.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Check for duplicate name
+    const duplicate = sectors.find(
+      s => s.name.toLowerCase() === formData.name.trim().toLowerCase() &&
+        s.id !== editingSector?.id
+    );
+    if (duplicate) {
+      toast.error('Já existe um setor com este nome!');
+      return;
+    }
     
     if (editingSector) {
       updateSector(editingSector.id, {
-        name: formData.name,
+        name: formData.name.trim(),
         icon: formData.icon,
       });
       toast.success('Setor atualizado!');
     } else {
       addSector({
-        name: formData.name,
+        name: formData.name.trim(),
         icon: formData.icon,
         active: true,
       });
@@ -102,69 +125,80 @@ const Setores = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h2 className="text-lg font-semibold text-foreground">Gerenciar Setores</h2>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="glow" onClick={() => resetForm()}>
-              <Plus className="w-4 h-4 mr-2" />
-              Novo Setor
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="bg-card border-border">
-            <DialogHeader>
-              <DialogTitle className="text-foreground">
-                {editingSector ? 'Editar Setor' : 'Novo Setor'}
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label>Nome do Setor</Label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="bg-secondary/50"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Ícone</Label>
-                <div className="grid grid-cols-6 gap-2">
-                  {iconOptions.map((option) => {
-                    const Icon = option.icon;
-                    return (
-                      <button
-                        key={option.name}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, icon: option.name })}
-                        className={cn(
-                          'p-3 rounded-lg border transition-all',
-                          formData.icon === option.name
-                            ? 'bg-primary/20 border-primary text-primary'
-                            : 'bg-secondary/50 border-border text-muted-foreground hover:bg-secondary'
-                        )}
-                      >
-                        <Icon className="w-5 h-5 mx-auto" />
-                      </button>
-                    );
-                  })}
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="relative flex-1 md:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar setor..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-secondary/50"
+            />
+          </div>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="glow" onClick={() => resetForm()}>
+                <Plus className="w-4 h-4 mr-2" />
+                Novo Setor
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-card border-border">
+              <DialogHeader>
+                <DialogTitle className="text-foreground">
+                  {editingSector ? 'Editar Setor' : 'Novo Setor'}
+                </DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Nome do Setor</Label>
+                  <Input
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="bg-secondary/50"
+                    required
+                  />
                 </div>
-              </div>
-              <div className="flex justify-end gap-2 pt-4">
-                <Button type="button" variant="outline" onClick={resetForm}>
-                  Cancelar
-                </Button>
-                <Button type="submit" variant="glow">
-                  {editingSector ? 'Salvar' : 'Criar'}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <div className="space-y-2">
+                  <Label>Ícone</Label>
+                  <div className="grid grid-cols-6 gap-2">
+                    {iconOptions.map((option) => {
+                      const Icon = option.icon;
+                      return (
+                        <button
+                          key={option.name}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, icon: option.name })}
+                          className={cn(
+                            'p-3 rounded-lg border transition-all',
+                            formData.icon === option.name
+                              ? 'bg-primary/20 border-primary text-primary'
+                              : 'bg-secondary/50 border-border text-muted-foreground hover:bg-secondary'
+                          )}
+                        >
+                          <Icon className="w-5 h-5 mx-auto" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button type="button" variant="outline" onClick={resetForm}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" variant="glow">
+                    {editingSector ? 'Salvar' : 'Criar'}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {sectors.map((sector) => {
+        {filteredSectors.map((sector) => {
           const Icon = getIcon(sector.icon);
           return (
             <div
@@ -211,6 +245,12 @@ const Setores = () => {
           );
         })}
       </div>
+
+      {filteredSectors.length === 0 && (
+        <div className="text-center py-8 text-muted-foreground">
+          Nenhum setor encontrado
+        </div>
+      )}
 
       {/* Users in Sector Dialog */}
       <UsersDialog open={!!selectedSector} onOpenChange={() => setSelectedSector(null)}>
