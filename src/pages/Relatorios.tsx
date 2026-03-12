@@ -33,6 +33,19 @@ const RANKING_COLORS = [
   'hsl(200, 80%, 40%)',
 ];
 
+const CATEGORY_LABELS: Record<string, string> = {
+  internet: 'Internet',
+  computador: 'Computador',
+  telefone: 'Telefone',
+  conta: 'Conta',
+  sistema: 'Sistema',
+  outros: 'Outros',
+  software: 'Software',
+  hardware: 'Hardware',
+  network: 'Rede',
+  other: 'Outro',
+};
+
 type DrilldownType = 'sector' | 'user' | 'category' | null;
 type TicketFilter = 'total' | 'month' | 'day';
 
