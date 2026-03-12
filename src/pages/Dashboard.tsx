@@ -22,6 +22,30 @@ const Dashboard = () => {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
+  const getUserById = (id: string) => users.find(u => u.id === id);
+
+  const filteredTickets = useMemo(() => {
+    if (!isAdmin) return [];
+    const filtered = tickets.filter(ticket => {
+      const userName = getUserById(ticket.user_id)?.name?.toLowerCase() || '';
+      const matchesSearch = userName.includes(search.toLowerCase()) ||
+                           ticket.title.toLowerCase().includes(search.toLowerCase()) ||
+                           (ticket.description?.toLowerCase().includes(search.toLowerCase()) ?? false);
+      const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
+      const matchesCategory = categoryFilter === 'all' || ticket.category === categoryFilter;
+      return matchesSearch && matchesStatus && matchesCategory;
+    });
+
+    filtered.sort((a, b) => {
+      const aResolved = a.status === 'resolved' ? 1 : 0;
+      const bResolved = b.status === 'resolved' ? 1 : 0;
+      if (aResolved !== bResolved) return aResolved - bResolved;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+    return filtered;
+  }, [tickets, search, statusFilter, categoryFilter, users, isAdmin]);
+
   if (!isAdmin) {
     return <Navigate to="/meus-chamados" replace />;
   }
@@ -32,9 +56,8 @@ const Dashboard = () => {
   const resolvedTickets = tickets.filter(t => t.status === 'resolved').length;
   const criticalTickets = tickets.filter(t => t.status === 'critical').length;
 
-  const getUserById = (id: string) => users.find(u => u.id === id);
-
-  const filteredTickets = useMemo(() => {
+  const totalPages = Math.max(1, Math.ceil(filteredTickets.length / ITEMS_PER_PAGE));
+  const paginatedTickets = filteredTickets.slice(
     const filtered = tickets.filter(ticket => {
       const userName = getUserById(ticket.user_id)?.name?.toLowerCase() || '';
       const matchesSearch = userName.includes(search.toLowerCase()) ||
