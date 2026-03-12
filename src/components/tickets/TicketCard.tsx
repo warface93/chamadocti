@@ -1,7 +1,7 @@
 import { Ticket, User } from '@/types';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { Clock, AlertTriangle } from 'lucide-react';
+import { Clock, AlertTriangle, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -9,7 +9,7 @@ interface TicketCardProps {
   ticket: Ticket;
   user?: User;
   onClick?: () => void;
-  isNewest?: boolean; // For user view - only newest should glow
+  isNewest?: boolean;
 }
 
 const statusLabels = {
@@ -44,8 +44,8 @@ const categoryLabels: Record<string, string> = {
 const TicketCard = ({ ticket, user, onClick, isNewest }: TicketCardProps) => {
   const isCritical = ticket.status === 'critical';
   const isResolved = ticket.status === 'resolved' && ticket.rating != null;
-  // For admin view: show glow if is_new. For user view: only show if isNewest
   const shouldGlow = isNewest !== undefined ? isNewest && ticket.is_new : ticket.is_new;
+  const statusChangedBy = (ticket as any).status_changed_by;
 
   return (
     <div
@@ -83,6 +83,14 @@ const TicketCard = ({ ticket, user, onClick, isNewest }: TicketCardProps) => {
           {categoryLabels[ticket.category]}
         </Badge>
       </div>
+
+      {/* Status changed by audit */}
+      {statusChangedBy && (
+        <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+          <UserCheck className="w-3 h-3 text-primary" />
+          <span>Atendido por: <span className="text-foreground font-medium">{statusChangedBy}</span></span>
+        </div>
+      )}
 
       <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
         <span>{user?.name || 'Usuário'}</span>

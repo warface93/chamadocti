@@ -227,6 +227,8 @@ export type Database = {
           is_new: boolean | null
           rating: number | null
           status: string
+          status_changed_at: string | null
+          status_changed_by: string | null
           title: string
           updated_at: string | null
           user_id: string
@@ -240,6 +242,8 @@ export type Database = {
           is_new?: boolean | null
           rating?: number | null
           status?: string
+          status_changed_at?: string | null
+          status_changed_by?: string | null
           title: string
           updated_at?: string | null
           user_id: string
@@ -253,6 +257,8 @@ export type Database = {
           is_new?: boolean | null
           rating?: number | null
           status?: string
+          status_changed_at?: string | null
+          status_changed_by?: string | null
           title?: string
           updated_at?: string | null
           user_id?: string
