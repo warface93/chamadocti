@@ -70,6 +70,34 @@ const Relatorios = () => {
     }
   }, [tickets, ticketFilter]);
 
+  // Ranking: Top 8 setores que mais solicitam chamados
+  const sectorTicketRanking = useMemo(() => {
+    const sectorCounts = sectors.map(sector => {
+      const sectorUsers = users.filter(u => u.sector_id === sector.id);
+      const sectorUserIds = sectorUsers.map(u => u.id);
+      const count = tickets.filter(t => sectorUserIds.includes(t.user_id)).length;
+      return { name: sector.name, count };
+    })
+    .filter(s => s.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8);
+    return sectorCounts;
+  }, [sectors, users, tickets]);
+
+  // Ranking: Top 8 categorias que mais aparecem
+  const categoryTicketRanking = useMemo(() => {
+    const catMap: Record<string, number> = {};
+    tickets.forEach(t => {
+      const label = CATEGORY_LABELS[t.category] || t.category;
+      catMap[label] = (catMap[label] || 0) + 1;
+    });
+    return Object.entries(catMap)
+      .map(([name, count]) => ({ name, count }))
+      .filter(c => c.count > 0)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
+  }, [tickets]);
+
   if (!isAdmin) {
     return <Navigate to="/meus-chamados" replace />;
   }
