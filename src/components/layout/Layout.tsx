@@ -23,7 +23,7 @@ const Layout = () => {
     return <Navigate to="/login" replace />;
   }
 
-  const title = pageTitles[location.pathname] || 'Suporte Técnico';
+  const title = pageTitles[location.pathname] || 'CTIChamados';
 
   return (
     <div className="flex min-h-screen bg-background">

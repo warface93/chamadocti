@@ -349,9 +349,18 @@ const ReuniaoUsuario = () => {
   };
 
   const handleFinalize = async (meetingId: string) => {
+    // Check if meeting has only "sem_equipamentos" — auto set to devolvido for admin
+    const meeting = myMeetings.find(m => m.id === meetingId);
+    const isSemEquipamentos = meeting && (
+      meeting.equipment.length === 0 ||
+      (meeting.equipment.length === 1 && meeting.equipment[0] === 'sem_equipamentos')
+    );
+
+    const newStatus = isSemEquipamentos ? 'devolvido' : 'finalizado';
+
     const { error } = await supabase
       .from('meetings')
-      .update({ status: 'finalizado' })
+      .update({ status: newStatus })
       .eq('id', meetingId);
 
     if (error) {
@@ -474,7 +483,7 @@ const ReuniaoUsuario = () => {
             {/* Start Time */}
             <div className="space-y-2">
               <Label className="flex items-center gap-1">
-                <Clock className="w-3 h-3 text-foreground" />
+                <Clock className="w-3 h-3 text-primary-foreground" style={{ color: 'white' }} />
                 Horário Início
               </Label>
               <div className="flex gap-2">
@@ -511,7 +520,7 @@ const ReuniaoUsuario = () => {
             {/* End Time */}
             <div className="space-y-2">
               <Label className="flex items-center gap-1">
-                <Clock className="w-3 h-3 text-foreground" />
+                <Clock className="w-3 h-3 text-primary-foreground" style={{ color: 'white' }} />
                 Horário Término
               </Label>
               <div className="flex gap-2">

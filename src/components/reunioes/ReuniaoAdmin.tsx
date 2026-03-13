@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Clock, MapPin, User, Package, Save, Filter, Edit, CheckCircle, AlertTriangle, Bell, Phone } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { CalendarIcon, Clock, MapPin, User, Package, Save, Filter, Edit, CheckCircle, AlertTriangle, Bell, Phone, Loader2 } from 'lucide-react';
 import { format, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -63,10 +64,31 @@ const isMeetingOverdue = (meeting: MeetingWithDetails) => {
   return isAfter(now, endDateTime);
 };
 
+const MeetingCardSkeleton = () => (
+  <Card className="border-border">
+    <CardContent className="p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-5 w-16 rounded-full" />
+      </div>
+      <div className="flex items-center gap-4">
+        <Skeleton className="h-3 w-28" />
+        <Skeleton className="h-3 w-20" />
+      </div>
+      <Skeleton className="h-3 w-32" />
+      <div className="flex gap-1">
+        <Skeleton className="h-5 w-16 rounded-full" />
+        <Skeleton className="h-5 w-20 rounded-full" />
+      </div>
+    </CardContent>
+  </Card>
+);
+
 const ReuniaoAdmin = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [meetings, setMeetings] = useState<MeetingWithDetails[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<string>('todas');
   const [selectedMeeting, setSelectedMeeting] = useState<MeetingWithDetails | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -98,27 +120,42 @@ const ReuniaoAdmin = () => {
   }, []);
 
   const fetchMeetings = async () => {
-    const { data: meetingsData } = await supabase
-      .from('meetings')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      // Fetch all data in parallel instead of N+1 queries
+      const [meetingsRes, profilesRes, equipmentRes, adminItemsRes] = await Promise.all([
+        supabase.from('meetings').select('*').order('created_at', { ascending: false }),
+        supabase.from('profiles').select('id, name'),
+        supabase.from('meeting_equipment').select('meeting_id, equipment'),
+        supabase.from('meeting_admin_items').select('*'),
+      ]);
 
-    if (!meetingsData) return;
+      if (!meetingsRes.data) return;
 
-    const enriched: MeetingWithDetails[] = [];
-    for (const m of meetingsData) {
-      const { data: profile } = await supabase.from('profiles').select('name').eq('id', m.user_id).maybeSingle();
-      const { data: eqData } = await supabase.from('meeting_equipment').select('equipment').eq('meeting_id', m.id);
-      const { data: adminItems } = await supabase.from('meeting_admin_items').select('*').eq('meeting_id', m.id);
-
-      enriched.push({
-        ...m,
-        user_name: profile?.name || 'Desconhecido',
-        equipment: eqData?.map(e => e.equipment) || [],
-        admin_items: (adminItems as AdminItem[]) || [],
+      const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p.name]));
+      const equipmentMap = new Map<string, string[]>();
+      (equipmentRes.data || []).forEach(e => {
+        const arr = equipmentMap.get(e.meeting_id) || [];
+        arr.push(e.equipment);
+        equipmentMap.set(e.meeting_id, arr);
       });
+      const adminItemsMap = new Map<string, AdminItem[]>();
+      (adminItemsRes.data || []).forEach((item: AdminItem) => {
+        const arr = adminItemsMap.get(item.meeting_id) || [];
+        arr.push(item);
+        adminItemsMap.set(item.meeting_id, arr);
+      });
+
+      const enriched: MeetingWithDetails[] = meetingsRes.data.map(m => ({
+        ...m,
+        user_name: profileMap.get(m.user_id) || 'Desconhecido',
+        equipment: equipmentMap.get(m.id) || [],
+        admin_items: adminItemsMap.get(m.id) || [],
+      }));
+
+      setMeetings(enriched);
+    } finally {
+      setIsLoading(false);
     }
-    setMeetings(enriched);
   };
 
   const filteredMeetings = meetings.filter(m => {
@@ -140,23 +177,32 @@ const ReuniaoAdmin = () => {
     } else {
       toast({ title: 'Status atualizado com sucesso!' });
       fetchMeetings();
-      if (selectedMeeting?.id === meetingId) {
-        setSelectedMeeting(prev => prev ? { ...prev, status: newStatus } : null);
-      }
+      // Close dialog after saving status
+      setDialogOpen(false);
+      setSelectedMeeting(null);
     }
     setSavingStatus(false);
   };
 
   const handleFinalize = async (meetingId: string) => {
+    // Check if meeting has only "sem_equipamentos" — auto set to devolvido
+    const meeting = meetings.find(m => m.id === meetingId);
+    const isSemEquipamentos = meeting && (
+      meeting.equipment.length === 0 ||
+      (meeting.equipment.length === 1 && meeting.equipment[0] === 'sem_equipamentos')
+    );
+
+    const newStatus = isSemEquipamentos ? 'devolvido' : 'finalizado';
+
     const { error } = await supabase
       .from('meetings')
-      .update({ status: 'finalizado' })
+      .update({ status: newStatus })
       .eq('id', meetingId);
 
     if (error) {
       toast({ title: 'Erro ao finalizar reunião', variant: 'destructive' });
     } else {
-      toast({ title: 'Reunião finalizada!' });
+      toast({ title: isSemEquipamentos ? 'Reunião finalizada e devolvida!' : 'Reunião finalizada!' });
       fetchMeetings();
     }
   };
@@ -291,8 +337,14 @@ const ReuniaoAdmin = () => {
         </div>
       </div>
 
-      {/* Meetings grid */}
-      {filteredMeetings.length === 0 ? (
+      {/* Loading skeleton */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <MeetingCardSkeleton key={i} />
+          ))}
+        </div>
+      ) : filteredMeetings.length === 0 ? (
         <p className="text-muted-foreground text-sm">Nenhuma reunião encontrada.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -461,7 +513,7 @@ const ReuniaoAdmin = () => {
                   disabled={savingStatus}
                   onClick={() => handleStatusChange(selectedMeeting.id, selectedMeeting.status)}
                 >
-                  <Save className="w-4 h-4 mr-1" />
+                  {savingStatus ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
                   Salvar
                 </Button>
               </div>

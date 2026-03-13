@@ -84,7 +84,7 @@ const Relatorios = () => {
     return sectorCounts;
   }, [sectors, users, tickets]);
 
-  // Ranking: Top 8 categorias que mais aparecem
+  // Ranking: Top 8 categorias que mais aparecem (excluindo "Outro")
   const categoryTicketRanking = useMemo(() => {
     const catMap: Record<string, number> = {};
     tickets.forEach(t => {
@@ -93,7 +93,7 @@ const Relatorios = () => {
     });
     return Object.entries(catMap)
       .map(([name, count]) => ({ name, count }))
-      .filter(c => c.count > 0)
+      .filter(c => c.count > 0 && c.name !== 'Outro' && c.name !== 'Outros')
       .sort((a, b) => b.count - a.count)
       .slice(0, 8);
   }, [tickets]);
