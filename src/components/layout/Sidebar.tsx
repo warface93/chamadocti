@@ -42,7 +42,7 @@ const Sidebar = () => {
             <Headphones className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h1 className="font-bold text-sidebar-foreground">Suporte</h1>
+            <h1 className="font-bold text-sidebar-foreground">CTIChamados</h1>
             <p className="text-xs text-muted-foreground">Sistema de Chamados</p>
           </div>
         </div>

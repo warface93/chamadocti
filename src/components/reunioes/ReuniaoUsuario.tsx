@@ -349,9 +349,18 @@ const ReuniaoUsuario = () => {
   };
 
   const handleFinalize = async (meetingId: string) => {
+    // Check if meeting has only "sem_equipamentos" — auto set to devolvido for admin
+    const meeting = myMeetings.find(m => m.id === meetingId);
+    const isSemEquipamentos = meeting && (
+      meeting.equipment.length === 0 ||
+      (meeting.equipment.length === 1 && meeting.equipment[0] === 'sem_equipamentos')
+    );
+
+    const newStatus = isSemEquipamentos ? 'devolvido' : 'finalizado';
+
     const { error } = await supabase
       .from('meetings')
-      .update({ status: 'finalizado' })
+      .update({ status: newStatus })
       .eq('id', meetingId);
 
     if (error) {
