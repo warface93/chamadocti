@@ -8,10 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, UserX, Shield, ShieldOff, User as UserIcon, Phone, KeyRound, Search, Filter } from 'lucide-react';
+import { Plus, Edit, Trash2, UserX, Shield, ShieldOff, User as UserIcon, Phone, KeyRound, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+
+const ITEMS_PER_PAGE = 15;
 
 const Usuarios = () => {
   const { isAdmin } = useAuth();
@@ -29,7 +31,6 @@ const Usuarios = () => {
     password: '',
   });
 
-  // Password reset dialog
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordUserId, setPasswordUserId] = useState('');
   const [passwordUserName, setPasswordUserName] = useState('');
@@ -38,6 +39,7 @@ const Usuarios = () => {
 
   const [searchUser, setSearchUser] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
 
   if (!isAdmin) {
     return <Navigate to="/meus-chamados" replace />;
@@ -164,12 +166,25 @@ const Usuarios = () => {
     }
   };
 
-
   const getSectorName = (id: string) => sectors.find(s => s.id === id)?.name || 'N/A';
 
   const filteredUsers = users
     .filter(u => u.name.toLowerCase().includes(searchUser.toLowerCase()))
     .filter(u => roleFilter === 'all' ? true : u.role === roleFilter);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / ITEMS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedUsers = filteredUsers.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
+
+  // Reset page when filters change
+  const handleSearchChange = (value: string) => {
+    setSearchUser(value);
+    setCurrentPage(1);
+  };
+  const handleRoleFilterChange = (value: 'all' | 'admin' | 'user') => {
+    setRoleFilter(value);
+    setCurrentPage(1);
+  };
 
   return (
     <div className="space-y-6">
@@ -196,48 +211,24 @@ const Usuarios = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label>Nome</Label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="bg-secondary/50"
-                  required
-                />
+                <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="bg-secondary/50" required />
               </div>
               <div className="space-y-2">
                 <Label>Username (para login)</Label>
-                <Input
-                  value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  className="bg-secondary/50"
-                  required
-                />
+                <Input value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} className="bg-secondary/50" required />
               </div>
               <div className="space-y-2">
                 <Label>Telefone</Label>
-                <Input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="bg-secondary/50"
-                  placeholder="(00) 00000-0000"
-                />
+                <Input type="tel" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="bg-secondary/50" placeholder="(00) 00000-0000" />
               </div>
               <div className="space-y-2">
                 <Label>Email <span className="text-muted-foreground text-xs">(opcional)</span></Label>
-                <Input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="bg-secondary/50"
-                  placeholder="usuario@empresa.com"
-                />
+                <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="bg-secondary/50" placeholder="usuario@empresa.com" />
               </div>
               <div className="space-y-2">
                 <Label>Setor</Label>
                 <Select value={formData.sector_id} onValueChange={(v) => setFormData({ ...formData, sector_id: v })}>
-                  <SelectTrigger className="bg-secondary/50">
-                    <SelectValue placeholder="Selecione o setor" />
-                  </SelectTrigger>
+                  <SelectTrigger className="bg-secondary/50"><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
                   <SelectContent>
                     {sectors.filter(s => s.active).map((sector) => (
                       <SelectItem key={sector.id} value={sector.id}>{sector.name}</SelectItem>
@@ -248,9 +239,7 @@ const Usuarios = () => {
               <div className="space-y-2">
                 <Label>Função</Label>
                 <Select value={formData.role} onValueChange={(v) => setFormData({ ...formData, role: v as UserRole })}>
-                  <SelectTrigger className="bg-secondary/50">
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger className="bg-secondary/50"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="user">Usuário</SelectItem>
                     <SelectItem value="admin">Administrador</SelectItem>
@@ -260,21 +249,11 @@ const Usuarios = () => {
               {!editingUser && (
                 <div className="space-y-2">
                   <Label>Senha</Label>
-                  <Input
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="bg-secondary/50"
-                    required={!editingUser}
-                    minLength={6}
-                    placeholder="Mínimo 6 caracteres"
-                  />
+                  <Input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="bg-secondary/50" required={!editingUser} minLength={6} placeholder="Mínimo 6 caracteres" />
                 </div>
               )}
               <div className="flex justify-end gap-2 pt-4">
-                <Button type="button" variant="outline" onClick={resetForm}>
-                  Cancelar
-                </Button>
+                <Button type="button" variant="outline" onClick={resetForm}>Cancelar</Button>
                 <Button type="submit" variant="glow" disabled={isLoading}>
                   {isLoading ? 'Salvando...' : editingUser ? 'Salvar' : 'Criar'}
                 </Button>
@@ -294,13 +273,7 @@ const Usuarios = () => {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Nova Senha</Label>
-              <Input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Mínimo 6 caracteres"
-                minLength={6}
-              />
+              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" minLength={6} />
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>Cancelar</Button>
@@ -315,12 +288,7 @@ const Usuarios = () => {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative max-w-sm flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Pesquisar usuário pelo nome..."
-            value={searchUser}
-            onChange={(e) => setSearchUser(e.target.value)}
-            className="pl-10 bg-secondary/50"
-          />
+          <Input placeholder="Pesquisar usuário pelo nome..." value={searchUser} onChange={(e) => handleSearchChange(e.target.value)} className="pl-10 bg-secondary/50" />
         </div>
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-muted-foreground" />
@@ -329,12 +297,7 @@ const Usuarios = () => {
             { value: 'admin' as const, label: 'Administradores' },
             { value: 'user' as const, label: 'Usuários' },
           ].map(f => (
-            <Button
-              key={f.value}
-              variant={roleFilter === f.value ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setRoleFilter(f.value)}
-            >
+            <Button key={f.value} variant={roleFilter === f.value ? 'default' : 'outline'} size="sm" onClick={() => handleRoleFilterChange(f.value)}>
               {f.label}
             </Button>
           ))}
@@ -342,25 +305,12 @@ const Usuarios = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredUsers.map((user) => (
-          <div
-            key={user.id}
-            className={cn(
-              'bg-card rounded-xl p-5 border glow-card card-hover-effect',
-              !user.active && 'opacity-60'
-            )}
-          >
+        {paginatedUsers.map((user) => (
+          <div key={user.id} className={cn('bg-card rounded-xl p-5 border glow-card card-hover-effect', !user.active && 'opacity-60')}>
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className={cn(
-                  'w-12 h-12 rounded-full flex items-center justify-center',
-                  user.role === 'admin' ? 'bg-primary/20' : 'bg-secondary'
-                )}>
-                  {user.role === 'admin' ? (
-                    <Shield className="w-6 h-6 text-primary" />
-                  ) : (
-                    <UserIcon className="w-6 h-6 text-muted-foreground" />
-                  )}
+                <div className={cn('w-12 h-12 rounded-full flex items-center justify-center', user.role === 'admin' ? 'bg-primary/20' : 'bg-secondary')}>
+                  {user.role === 'admin' ? <Shield className="w-6 h-6 text-primary" /> : <UserIcon className="w-6 h-6 text-muted-foreground" />}
                 </div>
                 <div>
                   <h3 className="font-semibold text-foreground">{user.name}</h3>
@@ -382,9 +332,7 @@ const Usuarios = () => {
               )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Função:</span>
-                <span className={cn(
-                  user.role === 'admin' ? 'text-primary' : 'text-foreground'
-                )}>
+                <span className={cn(user.role === 'admin' ? 'text-primary' : 'text-foreground')}>
                   {user.role === 'admin' ? 'Administrador' : 'Usuário'}
                 </span>
               </div>
@@ -398,8 +346,7 @@ const Usuarios = () => {
 
             <div className="flex gap-2 flex-wrap">
               <Button size="sm" variant="outline" onClick={() => handleEdit(user)}>
-                <Edit className="w-3 h-3 mr-1" />
-                Editar
+                <Edit className="w-3 h-3 mr-1" /> Editar
               </Button>
               <Button size="sm" variant="outline" onClick={() => {
                 setPasswordUserId(user.id);
@@ -407,19 +354,13 @@ const Usuarios = () => {
                 setNewPassword('');
                 setPasswordDialogOpen(true);
               }}>
-                <KeyRound className="w-3 h-3 mr-1" />
-                Senha
+                <KeyRound className="w-3 h-3 mr-1" /> Senha
               </Button>
               <Button size="sm" variant="outline" onClick={() => handleToggleActive(user)}>
-                <UserX className="w-3 h-3 mr-1" />
-                {user.active ? 'Desativar' : 'Ativar'}
+                <UserX className="w-3 h-3 mr-1" /> {user.active ? 'Desativar' : 'Ativar'}
               </Button>
               <Button size="sm" variant="outline" onClick={() => handleToggleRole(user)}>
-                {user.role === 'admin' ? (
-                  <><ShieldOff className="w-3 h-3 mr-1" />Rebaixar</>
-                ) : (
-                  <><Shield className="w-3 h-3 mr-1" />Promover</>
-                )}
+                {user.role === 'admin' ? <><ShieldOff className="w-3 h-3 mr-1" />Rebaixar</> : <><Shield className="w-3 h-3 mr-1" />Promover</>}
               </Button>
               <Button size="sm" variant="destructive" onClick={() => handleDelete(user.id)}>
                 <Trash2 className="w-3 h-3" />
@@ -428,6 +369,32 @@ const Usuarios = () => {
           </div>
         ))}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 pt-4">
+          <Button variant="outline" size="sm" disabled={safePage <= 1} onClick={() => setCurrentPage(safePage - 1)}>
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+            <Button
+              key={page}
+              variant={page === safePage ? 'default' : 'outline'}
+              size="sm"
+              className="w-8 h-8 p-0"
+              onClick={() => setCurrentPage(page)}
+            >
+              {page}
+            </Button>
+          ))}
+          <Button variant="outline" size="sm" disabled={safePage >= totalPages} onClick={() => setCurrentPage(safePage + 1)}>
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+          <span className="text-sm text-muted-foreground ml-2">
+            {filteredUsers.length} usuário(s)
+          </span>
+        </div>
+      )}
     </div>
   );
 };

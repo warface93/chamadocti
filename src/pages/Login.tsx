@@ -195,7 +195,7 @@ const Login = () => {
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 glow-card">
               <Headphones className="w-8 h-8 text-primary" />
             </div>
-            <h1 className="text-2xl font-bold gradient-text">Suporte Técnico</h1>
+            <h1 className="text-2xl font-bold gradient-text">CTIChamados</h1>
             <p className="text-muted-foreground mt-2">
               {isSignUpMode && !hasUsers 
                 ? 'Primeiro Acesso - Crie o Administrador'
