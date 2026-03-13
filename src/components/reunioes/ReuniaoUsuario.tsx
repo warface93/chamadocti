@@ -474,7 +474,7 @@ const ReuniaoUsuario = () => {
             {/* Start Time */}
             <div className="space-y-2">
               <Label className="flex items-center gap-1">
-                <Clock className="w-3 h-3 text-foreground" />
+                <Clock className="w-3 h-3 text-primary-foreground" style={{ color: 'white' }} />
                 Horário Início
               </Label>
               <div className="flex gap-2">
