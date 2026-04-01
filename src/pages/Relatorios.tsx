@@ -3,12 +3,16 @@ import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Star, ArrowLeft, User, Building2, Tag, TicketCheck, Calendar, Trophy } from 'lucide-react';
+import { Star, ArrowLeft, User, Building2, Tag, TicketCheck, Calendar, Trophy, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, isToday, isThisMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -23,35 +27,38 @@ const STATUS_COLORS: Record<string, string> = {
 const COLORS = ['hsl(190, 95%, 50%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(0, 84%, 60%)', 'hsl(217, 33%, 50%)'];
 
 const RANKING_COLORS = [
-  'hsl(190, 95%, 50%)',
-  'hsl(142, 76%, 36%)',
-  'hsl(38, 92%, 50%)',
-  'hsl(0, 84%, 60%)',
-  'hsl(270, 70%, 55%)',
-  'hsl(25, 95%, 53%)',
-  'hsl(330, 80%, 50%)',
-  'hsl(200, 80%, 40%)',
+  'hsl(190, 95%, 50%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(0, 84%, 60%)',
+  'hsl(270, 70%, 55%)', 'hsl(25, 95%, 53%)', 'hsl(330, 80%, 50%)', 'hsl(200, 80%, 40%)',
 ];
 
 const CATEGORY_LABELS: Record<string, string> = {
-  internet: 'Internet',
-  computador: 'Computador',
-  telefone: 'Telefone',
-  conta: 'Conta',
-  sistema: 'Sistema',
-  outros: 'Outros',
-  software: 'Software',
-  hardware: 'Hardware',
-  network: 'Rede',
-  other: 'Outro',
+  internet: 'Internet', computador: 'Computador', telefone: 'Telefone', conta: 'Conta',
+  sistema: 'Sistema', outros: 'Outros', software: 'Software', hardware: 'Hardware',
+  network: 'Rede', other: 'Outro',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  open: 'Aberto', in_progress: 'Em Andamento', resolved: 'Resolvido', critical: 'Crítico', pending: 'Pendente',
 };
 
 type DrilldownType = 'sector' | 'user' | 'category' | null;
 type TicketFilter = 'total' | 'month' | 'day';
 
+const RelatoriosSkeleton = () => (
+  <div className="space-y-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <Skeleton className="h-32 rounded-xl" />
+      <Skeleton className="h-32 rounded-xl" />
+    </div>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-72 rounded-xl" />)}
+    </div>
+  </div>
+);
+
 const Relatorios = () => {
   const { isAdmin } = useAuth();
-  const { tickets, users, sectors } = useData();
+  const { tickets, users, sectors, loading } = useData();
   const [drilldownType, setDrilldownType] = useState<DrilldownType>(null);
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -59,67 +66,45 @@ const Relatorios = () => {
   const [activeBarIndex, setActiveBarIndex] = useState<number | null>(null);
   const [ticketFilter, setTicketFilter] = useState<TicketFilter>('total');
 
+  // Export state
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportDay, setExportDay] = useState('');
+  const [exportMonth, setExportMonth] = useState('');
+  const [exportYear, setExportYear] = useState('');
+
   const filteredTicketsCount = useMemo(() => {
     switch (ticketFilter) {
-      case 'day':
-        return tickets.filter(t => isToday(new Date(t.created_at))).length;
-      case 'month':
-        return tickets.filter(t => isThisMonth(new Date(t.created_at))).length;
-      default:
-        return tickets.length;
+      case 'day': return tickets.filter(t => isToday(new Date(t.created_at))).length;
+      case 'month': return tickets.filter(t => isThisMonth(new Date(t.created_at))).length;
+      default: return tickets.length;
     }
   }, [tickets, ticketFilter]);
 
-  // Ranking: Top 8 setores que mais solicitam chamados
   const sectorTicketRanking = useMemo(() => {
-    const sectorCounts = sectors.map(sector => {
+    return sectors.map(sector => {
       const sectorUsers = users.filter(u => u.sector_id === sector.id);
-      const sectorUserIds = sectorUsers.map(u => u.id);
-      const count = tickets.filter(t => sectorUserIds.includes(t.user_id)).length;
+      const count = tickets.filter(t => sectorUsers.some(u => u.id === t.user_id)).length;
       return { name: sector.name, count };
-    })
-    .filter(s => s.count > 0)
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 8);
-    return sectorCounts;
+    }).filter(s => s.count > 0).sort((a, b) => b.count - a.count).slice(0, 8);
   }, [sectors, users, tickets]);
 
-  // Ranking: Top 8 categorias que mais aparecem (excluindo "Outro")
   const categoryTicketRanking = useMemo(() => {
     const catMap: Record<string, number> = {};
-    tickets.forEach(t => {
-      const label = CATEGORY_LABELS[t.category] || t.category;
-      catMap[label] = (catMap[label] || 0) + 1;
-    });
-    return Object.entries(catMap)
-      .map(([name, count]) => ({ name, count }))
+    tickets.forEach(t => { const label = CATEGORY_LABELS[t.category] || t.category; catMap[label] = (catMap[label] || 0) + 1; });
+    return Object.entries(catMap).map(([name, count]) => ({ name, count }))
       .filter(c => c.count > 0 && c.name !== 'Outro' && c.name !== 'Outros')
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 8);
+      .sort((a, b) => b.count - a.count).slice(0, 8);
   }, [tickets]);
 
-  if (!isAdmin) {
-    return <Navigate to="/meus-chamados" replace />;
-  }
+  if (!isAdmin) return <Navigate to="/meus-chamados" replace />;
+  if (loading) return <RelatoriosSkeleton />;
 
   const ratedTickets = tickets.filter(t => t.rating && t.rating > 0);
-  const averageRating = ratedTickets.length > 0 
-    ? ratedTickets.reduce((acc, t) => acc + (t.rating || 0), 0) / ratedTickets.length 
-    : 0;
+  const averageRating = ratedTickets.length > 0 ? ratedTickets.reduce((acc, t) => acc + (t.rating || 0), 0) / ratedTickets.length : 0;
 
-  const RATING_BAR_COLORS = [
-    'hsl(0, 84%, 60%)',
-    'hsl(25, 95%, 53%)',
-    'hsl(38, 92%, 50%)',
-    'hsl(142, 76%, 36%)',
-    'hsl(190, 95%, 50%)',
-  ];
-
+  const RATING_BAR_COLORS = ['hsl(0, 84%, 60%)', 'hsl(25, 95%, 53%)', 'hsl(38, 92%, 50%)', 'hsl(142, 76%, 36%)', 'hsl(190, 95%, 50%)'];
   const ratingDistribution = [1, 2, 3, 4, 5].map((rating, i) => ({
-    rating: `${rating} ★`,
-    quantidade: ratedTickets.filter(t => t.rating === rating).length,
-    ratingValue: rating,
-    color: RATING_BAR_COLORS[i],
+    rating: `${rating} ★`, quantidade: ratedTickets.filter(t => t.rating === rating).length, ratingValue: rating, color: RATING_BAR_COLORS[i],
   }));
 
   const statusData = [
@@ -137,116 +122,104 @@ const Relatorios = () => {
     { name: 'Outro', key: 'other', value: tickets.filter(t => t.category === 'other').length },
   ].filter(d => d.value > 0);
 
-  // Avaliações por setor
   const sectorRatings = sectors.map(sector => {
     const sectorUsers = users.filter(u => u.sector_id === sector.id);
-    const sectorUserIds = sectorUsers.map(u => u.id);
-    const sectorTickets = ratedTickets.filter(t => sectorUserIds.includes(t.user_id));
-    const avgRating = sectorTickets.length > 0
-      ? sectorTickets.reduce((acc, t) => acc + (t.rating || 0), 0) / sectorTickets.length
-      : 0;
-    return {
-      id: sector.id,
-      name: sector.name,
-      rating: Number(avgRating.toFixed(1)),
-      count: sectorTickets.length,
-    };
+    const sectorTickets = ratedTickets.filter(t => sectorUsers.some(u => u.id === t.user_id));
+    const avgRating = sectorTickets.length > 0 ? sectorTickets.reduce((acc, t) => acc + (t.rating || 0), 0) / sectorTickets.length : 0;
+    return { id: sector.id, name: sector.name, rating: Number(avgRating.toFixed(1)), count: sectorTickets.length };
   }).filter(s => s.count > 0);
 
   const userRatings = users.map(user => {
     const userTickets = ratedTickets.filter(t => t.user_id === user.id);
-    const avgRating = userTickets.length > 0
-      ? userTickets.reduce((acc, t) => acc + (t.rating || 0), 0) / userTickets.length
-      : 0;
-    return {
-      id: user.id,
-      name: user.name,
-      rating: Number(avgRating.toFixed(1)),
-      count: userTickets.length,
-    };
+    const avgRating = userTickets.length > 0 ? userTickets.reduce((acc, t) => acc + (t.rating || 0), 0) / userTickets.length : 0;
+    return { id: user.id, name: user.name, rating: Number(avgRating.toFixed(1)), count: userTickets.length };
   }).filter(u => u.count > 0);
 
   const getDrilldownTickets = () => {
     if (!selectedItem) return [];
     switch (drilldownType) {
-      case 'sector': {
-        const sectorUsers = users.filter(u => u.sector_id === selectedItem);
-        const sectorUserIds = sectorUsers.map(u => u.id);
-        return ratedTickets.filter(t => sectorUserIds.includes(t.user_id));
-      }
-      case 'user':
-        return ratedTickets.filter(t => t.user_id === selectedItem);
-      case 'category':
-        return ratedTickets.filter(t => t.category === selectedItem);
-      default:
-        return [];
+      case 'sector': { const ids = users.filter(u => u.sector_id === selectedItem).map(u => u.id); return ratedTickets.filter(t => ids.includes(t.user_id)); }
+      case 'user': return ratedTickets.filter(t => t.user_id === selectedItem);
+      case 'category': return ratedTickets.filter(t => t.category === selectedItem);
+      default: return [];
     }
   };
 
   const getDrilldownTitle = () => {
     if (!selectedItem) return '';
     switch (drilldownType) {
-      case 'sector':
-        return `Avaliações - ${sectors.find(s => s.id === selectedItem)?.name || 'Setor'}`;
-      case 'user':
-        return `Avaliações - ${users.find(u => u.id === selectedItem)?.name || 'Usuário'}`;
-      case 'category': {
-        const categoryNames: Record<string, string> = {
-          software: 'Software',
-          hardware: 'Hardware',
-          network: 'Rede',
-          other: 'Outro'
-        };
-        return `Avaliações - ${categoryNames[selectedItem] || 'Categoria'}`;
-      }
-      default:
-        return '';
+      case 'sector': return `Avaliações - ${sectors.find(s => s.id === selectedItem)?.name || 'Setor'}`;
+      case 'user': return `Avaliações - ${users.find(u => u.id === selectedItem)?.name || 'Usuário'}`;
+      case 'category': return `Avaliações - ${({ software: 'Software', hardware: 'Hardware', network: 'Rede', other: 'Outro' } as any)[selectedItem] || 'Categoria'}`;
+      default: return '';
     }
   };
 
-  const handleDrilldown = (type: DrilldownType, id: string) => {
-    setDrilldownType(type);
-    setSelectedItem(id);
-    setIsDialogOpen(true);
-  };
-
-  const handlePieClick = (_: any, index: number) => {
-    setActiveStatusIndex(prev => prev === index ? null : index);
-  };
-
-  const handleBarClick = (_: any, index: number) => {
-    setActiveBarIndex(prev => prev === index ? null : index);
-  };
+  const handleDrilldown = (type: DrilldownType, id: string) => { setDrilldownType(type); setSelectedItem(id); setIsDialogOpen(true); };
+  const handlePieClick = (_: any, index: number) => { setActiveStatusIndex(prev => prev === index ? null : index); };
+  const handleBarClick = (_: any, index: number) => { setActiveBarIndex(prev => prev === index ? null : index); };
 
   const drilldownTickets = getDrilldownTickets();
   const getUserById = (id: string) => users.find(u => u.id === id);
-
   const filterLabel = ticketFilter === 'total' ? 'Total' : ticketFilter === 'month' ? 'Este Mês' : 'Hoje';
+
+  // Export function
+  const handleExport = (formatType: 'csv' | 'xlsx') => {
+    let filtered = [...tickets];
+    if (exportYear) filtered = filtered.filter(t => new Date(t.created_at).getFullYear().toString() === exportYear);
+    if (exportMonth) filtered = filtered.filter(t => (new Date(t.created_at).getMonth() + 1).toString().padStart(2, '0') === exportMonth);
+    if (exportDay) filtered = filtered.filter(t => new Date(t.created_at).getDate().toString().padStart(2, '0') === exportDay);
+
+    const rows = filtered.map((t, i) => ({
+      'Nº': i + 1,
+      'Título': t.title,
+      'Categoria': CATEGORY_LABELS[t.category] || t.category,
+      'Descrição': t.description || '',
+      'Status': STATUS_LABELS[t.status] || t.status,
+      'Data Abertura': format(new Date(t.created_at), 'dd/MM/yyyy HH:mm'),
+      'Data Atualização': format(new Date(t.updated_at), 'dd/MM/yyyy HH:mm'),
+      'Solicitante': getUserById(t.user_id)?.name || 'Desconhecido',
+      'Avaliação': t.rating ? `${t.rating} estrelas` : 'Sem avaliação',
+    }));
+
+    if (formatType === 'csv') {
+      const headers = Object.keys(rows[0] || {}).join(',');
+      const csvRows = rows.map(r => Object.values(r).map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+      const csv = [headers, ...csvRows].join('\n');
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `relatorio_chamados_${format(new Date(), 'yyyyMMdd')}.csv`; a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      // Simple XLSX-like format using TSV with .xlsx extension (opens in Excel)
+      const headers = Object.keys(rows[0] || {}).join('\t');
+      const tsvRows = rows.map(r => Object.values(r).join('\t'));
+      const tsv = [headers, ...tsvRows].join('\n');
+      const blob = new Blob(['\ufeff' + tsv], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `relatorio_chamados_${format(new Date(), 'yyyyMMdd')}.xlsx`; a.click();
+      URL.revokeObjectURL(url);
+    }
+    setExportDialogOpen(false);
+  };
+
+  const years = [...new Set(tickets.map(t => new Date(t.created_at).getFullYear().toString()))].sort().reverse();
+  const months = Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1).padStart(2, '0'), label: format(new Date(2024, i, 1), 'MMMM', { locale: ptBR }) }));
 
   return (
     <div className="space-y-6">
       {/* Top stats bar */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-card rounded-xl p-6 border border-border glow-card">
           <h2 className="text-lg font-semibold text-foreground mb-4">Média Geral de Avaliações</h2>
           <div className="flex items-center gap-4">
             <span className="text-5xl font-bold gradient-text">{averageRating.toFixed(1)}</span>
             <div className="flex">
               {[1, 2, 3, 4, 5].map((value) => (
-                <Star
-                  key={value}
-                  className={cn(
-                    'w-8 h-8',
-                    averageRating >= value
-                      ? 'fill-warning text-warning'
-                      : 'text-muted-foreground'
-                  )}
-                />
+                <Star key={value} className={cn('w-8 h-8', averageRating >= value ? 'fill-warning text-warning' : 'text-muted-foreground')} />
               ))}
             </div>
-            <span className="text-muted-foreground ml-4">
-              ({ratedTickets.length} avaliações)
-            </span>
+            <span className="text-muted-foreground ml-4">({ratedTickets.length} avaliações)</span>
           </div>
         </div>
 
@@ -254,9 +227,7 @@ const Relatorios = () => {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-foreground">Total de Chamados</h2>
             <Select value={ticketFilter} onValueChange={(v) => setTicketFilter(v as TicketFilter)}>
-              <SelectTrigger className="w-[140px] h-9">
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger className="w-[140px] h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="total">Total</SelectItem>
                 <SelectItem value="month">Este Mês</SelectItem>
@@ -266,13 +237,16 @@ const Relatorios = () => {
           </div>
           <div className="flex items-center gap-4">
             <span className="text-5xl font-bold gradient-text">{filteredTicketsCount}</span>
-            <div className="flex items-center gap-2">
-              <TicketCheck className="w-8 h-8 text-primary" />
-            </div>
-            <span className="text-muted-foreground ml-4">
-              chamados ({filterLabel})
-            </span>
+            <TicketCheck className="w-8 h-8 text-primary" />
+            <span className="text-muted-foreground ml-4">chamados ({filterLabel})</span>
           </div>
+        </div>
+
+        <div className="bg-card rounded-xl p-6 border border-border glow-card flex flex-col justify-center">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Exportar Relatório</h2>
+          <Button variant="glow" onClick={() => setExportDialogOpen(true)}>
+            <Download className="w-4 h-4 mr-2" /> Baixar relatório de chamados
+          </Button>
         </div>
       </div>
 
@@ -286,20 +260,9 @@ const Relatorios = () => {
               <XAxis dataKey="rating" stroke="hsl(215, 20%, 55%)" />
               <YAxis stroke="hsl(215, 20%, 55%)" />
               <Tooltip content={() => null} />
-              <Bar 
-                dataKey="quantidade" 
-                radius={[4, 4, 0, 0]} 
-                onClick={handleBarClick}
-                cursor="pointer"
-              >
+              <Bar dataKey="quantidade" radius={[4, 4, 0, 0]} onClick={handleBarClick} cursor="pointer">
                 {ratingDistribution.map((entry, index) => (
-                  <Cell 
-                    key={`bar-cell-${index}`} 
-                    fill={entry.color}
-                    fillOpacity={activeBarIndex !== null && activeBarIndex !== index ? 0.2 : 1}
-                    stroke={activeBarIndex === index ? entry.color : 'none'}
-                    strokeWidth={activeBarIndex === index ? 2 : 0}
-                  />
+                  <Cell key={`bar-cell-${index}`} fill={entry.color} fillOpacity={activeBarIndex !== null && activeBarIndex !== index ? 0.2 : 1} stroke={activeBarIndex === index ? entry.color : 'none'} strokeWidth={activeBarIndex === index ? 2 : 0} />
                 ))}
               </Bar>
             </BarChart>
@@ -311,39 +274,18 @@ const Relatorios = () => {
           <h2 className="text-lg font-semibold text-foreground mb-4">Chamados por Status</h2>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
-              <Pie
-                data={statusData}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={100}
-                paddingAngle={5}
-                dataKey="value"
-                label={({ name, value }) => `${name}: ${value}`}
-                isAnimationActive={false}
-                onClick={handlePieClick}
-                cursor="pointer"
-              >
+              <Pie data={statusData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value" label={({ name, value }) => `${name}: ${value}`} isAnimationActive={false} onClick={handlePieClick} cursor="pointer">
                 {statusData.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={STATUS_COLORS[entry.name] || COLORS[index % COLORS.length]}
-                    fillOpacity={activeStatusIndex !== null && activeStatusIndex !== index ? 0.2 : 1}
-                    stroke={activeStatusIndex === index ? STATUS_COLORS[entry.name] : 'none'}
-                    strokeWidth={activeStatusIndex === index ? 3 : 0}
-                  />
+                  <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name] || COLORS[index % COLORS.length]} fillOpacity={activeStatusIndex !== null && activeStatusIndex !== index ? 0.2 : 1} stroke={activeStatusIndex === index ? STATUS_COLORS[entry.name] : 'none'} strokeWidth={activeStatusIndex === index ? 3 : 0} />
                 ))}
               </Pie>
             </PieChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Ranking: Setores que mais solicitam chamados */}
+        {/* Rankings */}
         <div className="bg-card rounded-xl p-6 border border-border glow-card">
-          <div className="flex items-center gap-2 mb-4">
-            <Trophy className="w-5 h-5 text-warning" />
-            <h2 className="text-lg font-semibold text-foreground">Top Setores - Chamados</h2>
-          </div>
+          <div className="flex items-center gap-2 mb-4"><Trophy className="w-5 h-5 text-warning" /><h2 className="text-lg font-semibold text-foreground">Top Setores - Chamados</h2></div>
           {sectorTicketRanking.length > 0 ? (
             <div className="space-y-2">
               {sectorTicketRanking.map((item, index) => {
@@ -353,37 +295,18 @@ const Relatorios = () => {
                   <div key={item.name} className="flex items-center gap-3">
                     <span className="text-xs font-bold text-muted-foreground w-5 text-right">{index + 1}°</span>
                     <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium text-foreground truncate">{item.name}</span>
-                        <span className="text-sm font-bold text-foreground ml-2">{item.count}</span>
-                      </div>
-                      <div className="h-2 rounded-full bg-secondary/30 overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all"
-                          style={{
-                            width: `${widthPct}%`,
-                            backgroundColor: RANKING_COLORS[index % RANKING_COLORS.length],
-                          }}
-                        />
-                      </div>
+                      <div className="flex items-center justify-between mb-1"><span className="text-sm font-medium text-foreground truncate">{item.name}</span><span className="text-sm font-bold text-foreground ml-2">{item.count}</span></div>
+                      <div className="h-2 rounded-full bg-secondary/30 overflow-hidden"><div className="h-full rounded-full transition-all" style={{ width: `${widthPct}%`, backgroundColor: RANKING_COLORS[index % RANKING_COLORS.length] }} /></div>
                     </div>
                   </div>
                 );
               })}
             </div>
-          ) : (
-            <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-              Nenhum dado disponível
-            </div>
-          )}
+          ) : <div className="h-[200px] flex items-center justify-center text-muted-foreground">Nenhum dado disponível</div>}
         </div>
 
-        {/* Ranking: Categorias que mais aparecem */}
         <div className="bg-card rounded-xl p-6 border border-border glow-card">
-          <div className="flex items-center gap-2 mb-4">
-            <Tag className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold text-foreground">Top Categorias - Chamados</h2>
-          </div>
+          <div className="flex items-center gap-2 mb-4"><Tag className="w-5 h-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">Top Categorias - Chamados</h2></div>
           {categoryTicketRanking.length > 0 ? (
             <div className="space-y-2">
               {categoryTicketRanking.map((item, index) => {
@@ -393,62 +316,29 @@ const Relatorios = () => {
                   <div key={item.name} className="flex items-center gap-3">
                     <span className="text-xs font-bold text-muted-foreground w-5 text-right">{index + 1}°</span>
                     <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium text-foreground truncate">{item.name}</span>
-                        <span className="text-sm font-bold text-foreground ml-2">{item.count}</span>
-                      </div>
-                      <div className="h-2 rounded-full bg-secondary/30 overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all"
-                          style={{
-                            width: `${widthPct}%`,
-                            backgroundColor: RANKING_COLORS[index % RANKING_COLORS.length],
-                          }}
-                        />
-                      </div>
+                      <div className="flex items-center justify-between mb-1"><span className="text-sm font-medium text-foreground truncate">{item.name}</span><span className="text-sm font-bold text-foreground ml-2">{item.count}</span></div>
+                      <div className="h-2 rounded-full bg-secondary/30 overflow-hidden"><div className="h-full rounded-full transition-all" style={{ width: `${widthPct}%`, backgroundColor: RANKING_COLORS[index % RANKING_COLORS.length] }} /></div>
                     </div>
                   </div>
                 );
               })}
             </div>
-          ) : (
-            <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-              Nenhum dado disponível
-            </div>
-          )}
+          ) : <div className="h-[200px] flex items-center justify-center text-muted-foreground">Nenhum dado disponível</div>}
         </div>
 
         {/* Avaliações por Categoria */}
         <div className="bg-card rounded-xl p-6 border border-border glow-card">
-          <div className="flex items-center gap-2 mb-4">
-            <Tag className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold text-foreground">Avaliações por Categoria</h2>
-            <span className="text-xs text-muted-foreground">(clique para detalhes)</span>
-          </div>
+          <div className="flex items-center gap-2 mb-4"><Tag className="w-5 h-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">Avaliações por Categoria</h2><span className="text-xs text-muted-foreground">(clique para detalhes)</span></div>
           <div className="space-y-3">
             {categoryData.map((category) => {
               const categoryTickets = ratedTickets.filter(t => t.category === category.key);
-              const avgRating = categoryTickets.length > 0
-                ? categoryTickets.reduce((acc, t) => acc + (t.rating || 0), 0) / categoryTickets.length
-                : 0;
+              const avgRating = categoryTickets.length > 0 ? categoryTickets.reduce((acc, t) => acc + (t.rating || 0), 0) / categoryTickets.length : 0;
               return (
-                <div
-                  key={category.key}
-                  onClick={() => handleDrilldown('category', category.key)}
-                  className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 cursor-pointer transition-colors"
-                >
+                <div key={category.key} onClick={() => handleDrilldown('category', category.key)} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 cursor-pointer transition-colors">
                   <span className="text-foreground font-medium">{category.name}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground text-sm">
-                      {categoryTickets.length} avaliações
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <Star className={cn(
-                        'w-4 h-4',
-                        avgRating > 0 ? 'fill-warning text-warning' : 'text-muted-foreground'
-                      )} />
-                      <span className="text-foreground">{avgRating.toFixed(1)}</span>
-                    </div>
+                    <span className="text-muted-foreground text-sm">{categoryTickets.length} avaliações</span>
+                    <div className="flex items-center gap-1"><Star className={cn('w-4 h-4', avgRating > 0 ? 'fill-warning text-warning' : 'text-muted-foreground')} /><span className="text-foreground">{avgRating.toFixed(1)}</span></div>
                   </div>
                 </div>
               );
@@ -458,78 +348,38 @@ const Relatorios = () => {
 
         {/* Avaliações por setor */}
         <div className="bg-card rounded-xl p-6 border border-border glow-card">
-          <div className="flex items-center gap-2 mb-4">
-            <Building2 className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold text-foreground">Avaliações por Setor</h2>
-            <span className="text-xs text-muted-foreground">(clique para detalhes)</span>
-          </div>
+          <div className="flex items-center gap-2 mb-4"><Building2 className="w-5 h-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">Avaliações por Setor</h2><span className="text-xs text-muted-foreground">(clique para detalhes)</span></div>
           {sectorRatings.length > 0 ? (
             <div className="space-y-3">
               {sectorRatings.map((sector) => (
-                <div
-                  key={sector.id}
-                  onClick={() => handleDrilldown('sector', sector.id)}
-                  className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 cursor-pointer transition-colors"
-                >
+                <div key={sector.id} onClick={() => handleDrilldown('sector', sector.id)} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 cursor-pointer transition-colors">
                   <span className="text-foreground font-medium">{sector.name}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground text-sm">
-                      {sector.count} avaliações
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <Star className={cn(
-                        'w-4 h-4',
-                        sector.rating > 0 ? 'fill-warning text-warning' : 'text-muted-foreground'
-                      )} />
-                      <span className="text-foreground">{sector.rating}</span>
-                    </div>
+                    <span className="text-muted-foreground text-sm">{sector.count} avaliações</span>
+                    <div className="flex items-center gap-1"><Star className={cn('w-4 h-4', sector.rating > 0 ? 'fill-warning text-warning' : 'text-muted-foreground')} /><span className="text-foreground">{sector.rating}</span></div>
                   </div>
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-              Nenhuma avaliação por setor ainda
-            </div>
-          )}
+          ) : <div className="h-[200px] flex items-center justify-center text-muted-foreground">Nenhuma avaliação por setor ainda</div>}
         </div>
 
         {/* Avaliações por usuário */}
         <div className="bg-card rounded-xl p-6 border border-border glow-card lg:col-span-2">
-          <div className="flex items-center gap-2 mb-4">
-            <User className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold text-foreground">Avaliações por Usuário</h2>
-            <span className="text-xs text-muted-foreground">(clique para detalhes)</span>
-          </div>
+          <div className="flex items-center gap-2 mb-4"><User className="w-5 h-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">Avaliações por Usuário</h2><span className="text-xs text-muted-foreground">(clique para detalhes)</span></div>
           {userRatings.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {userRatings.map((userRating) => (
-                <div
-                  key={userRating.id}
-                  onClick={() => handleDrilldown('user', userRating.id)}
-                  className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 cursor-pointer transition-colors"
-                >
+                <div key={userRating.id} onClick={() => handleDrilldown('user', userRating.id)} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 cursor-pointer transition-colors">
                   <span className="text-foreground font-medium truncate">{userRating.name}</span>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-muted-foreground text-sm">
-                      {userRating.count}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <Star className={cn(
-                        'w-4 h-4',
-                        userRating.rating > 0 ? 'fill-warning text-warning' : 'text-muted-foreground'
-                      )} />
-                      <span className="text-foreground">{userRating.rating}</span>
-                    </div>
+                    <span className="text-muted-foreground text-sm">{userRating.count}</span>
+                    <div className="flex items-center gap-1"><Star className={cn('w-4 h-4', userRating.rating > 0 ? 'fill-warning text-warning' : 'text-muted-foreground')} /><span className="text-foreground">{userRating.rating}</span></div>
                   </div>
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="h-[100px] flex items-center justify-center text-muted-foreground">
-              Nenhuma avaliação por usuário ainda
-            </div>
-          )}
+          ) : <div className="h-[100px] flex items-center justify-center text-muted-foreground">Nenhuma avaliação por usuário ainda</div>}
         </div>
       </div>
 
@@ -538,21 +388,11 @@ const Relatorios = () => {
         <DialogContent className="max-w-2xl bg-card border-border">
           <DialogHeader>
             <DialogTitle className="text-foreground flex items-center gap-2">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setIsDialogOpen(false)}
-                className="h-8 w-8"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
+              <Button variant="ghost" size="icon" onClick={() => setIsDialogOpen(false)} className="h-8 w-8"><ArrowLeft className="w-4 h-4" /></Button>
               {getDrilldownTitle()}
             </DialogTitle>
-            <DialogDescription>
-              Lista detalhada de chamados avaliados
-            </DialogDescription>
+            <DialogDescription>Lista detalhada de chamados avaliados</DialogDescription>
           </DialogHeader>
-          
           <ScrollArea className="max-h-[60vh]">
             {drilldownTickets.length > 0 ? (
               <div className="space-y-3 pr-4">
@@ -564,21 +404,11 @@ const Relatorios = () => {
                         <h4 className="font-medium text-foreground">{ticket.title}</h4>
                         <div className="flex items-center gap-1">
                           {[1, 2, 3, 4, 5].map((value) => (
-                            <Star
-                              key={value}
-                              className={cn(
-                                'w-4 h-4',
-                                (ticket.rating || 0) >= value
-                                  ? 'fill-warning text-warning'
-                                  : 'text-muted-foreground'
-                              )}
-                            />
+                            <Star key={value} className={cn('w-4 h-4', (ticket.rating || 0) >= value ? 'fill-warning text-warning' : 'text-muted-foreground')} />
                           ))}
                         </div>
                       </div>
-                      <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                        {ticket.description}
-                      </p>
+                      <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{ticket.description}</p>
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span>Por: {ticketUser?.name || 'Usuário'}</span>
                         <span>{format(new Date(ticket.created_at), "dd/MM/yyyy", { locale: ptBR })}</span>
@@ -587,12 +417,54 @@ const Relatorios = () => {
                   );
                 })}
               </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                Nenhuma avaliação encontrada
-              </div>
-            )}
+            ) : <div className="text-center py-8 text-muted-foreground">Nenhuma avaliação encontrada</div>}
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Dialog */}
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent className="bg-card border-border max-w-md">
+          <DialogHeader>
+            <DialogTitle>Exportar Relatório de Chamados</DialogTitle>
+            <DialogDescription>Selecione os filtros de período e o formato desejado.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <Label className="text-xs">Dia</Label>
+                <Input type="number" min="1" max="31" value={exportDay} onChange={(e) => setExportDay(e.target.value)} placeholder="DD" className="bg-secondary/50" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Mês</Label>
+                <Select value={exportMonth} onValueChange={setExportMonth}>
+                  <SelectTrigger className="bg-secondary/50"><SelectValue placeholder="Mês" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todos</SelectItem>
+                    {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Ano</Label>
+                <Select value={exportYear} onValueChange={setExportYear}>
+                  <SelectTrigger className="bg-secondary/50"><SelectValue placeholder="Ano" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todos</SelectItem>
+                    {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="glow" className="flex-1" onClick={() => handleExport('xlsx')}>
+                <Download className="w-4 h-4 mr-2" /> Excel (.xlsx)
+              </Button>
+              <Button variant="outline" className="flex-1" onClick={() => handleExport('csv')}>
+                <Download className="w-4 h-4 mr-2" /> CSV (.csv)
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
