@@ -15,6 +15,7 @@ import Relatorios from "./pages/Relatorios";
 import MeusChamados from "./pages/MeusChamados";
 import NovoChamado from "./pages/NovoChamado";
 import Reunioes from "./pages/Reunioes";
+import Equipamentos from "./pages/Equipamentos";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
                 <Route path="/meus-chamados" element={<MeusChamados />} />
                 <Route path="/novo-chamado" element={<NovoChamado />} />
                 <Route path="/reunioes" element={<Reunioes />} />
+                <Route path="/equipamentos" element={<Equipamentos />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
