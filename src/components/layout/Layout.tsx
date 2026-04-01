@@ -39,6 +39,7 @@ const Layout = () => {
           <Outlet />
         </main>
       </div>
+      <IArpeAssistant />
     </div>
   );
 };
