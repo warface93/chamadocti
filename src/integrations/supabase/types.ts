@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      equipment_inventory: {
+        Row: {
+          active: boolean
+          brand: string
+          created_at: string
+          id: string
+          tombamento: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          brand: string
+          created_at?: string
+          id?: string
+          tombamento?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          brand?: string
+          created_at?: string
+          id?: string
+          tombamento?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       meeting_admin_items: {
         Row: {
           description: string
@@ -85,6 +115,7 @@ export type Database = {
           ramal: string | null
           start_time: string
           status: string
+          theme: string | null
           updated_at: string
           user_id: string
         }
@@ -100,6 +131,7 @@ export type Database = {
           ramal?: string | null
           start_time: string
           status?: string
+          theme?: string | null
           updated_at?: string
           user_id: string
         }
@@ -115,6 +147,7 @@ export type Database = {
           ramal?: string | null
           start_time?: string
           status?: string
+          theme?: string | null
           updated_at?: string
           user_id?: string
         }
