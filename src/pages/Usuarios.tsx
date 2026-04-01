@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, Edit, Trash2, UserX, Shield, ShieldOff, User as UserIcon, Phone, KeyRound, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -15,9 +16,27 @@ import { supabase } from '@/integrations/supabase/client';
 
 const ITEMS_PER_PAGE = 15;
 
+const UsersSkeleton = () => (
+  <div className="space-y-6">
+    <div className="flex justify-between items-center">
+      <Skeleton className="h-7 w-48" />
+      <Skeleton className="h-10 w-36" />
+    </div>
+    <div className="flex gap-3">
+      <Skeleton className="h-10 flex-1 max-w-sm" />
+      <Skeleton className="h-10 w-64" />
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <Skeleton key={i} className="h-56 rounded-xl" />
+      ))}
+    </div>
+  </div>
+);
+
 const Usuarios = () => {
   const { isAdmin } = useAuth();
-  const { users, sectors, addUser, updateUser, deleteUser } = useData();
+  const { users, sectors, loading, addUser, updateUser, deleteUser } = useData();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -43,6 +62,10 @@ const Usuarios = () => {
 
   if (!isAdmin) {
     return <Navigate to="/meus-chamados" replace />;
+  }
+
+  if (loading) {
+    return <UsersSkeleton />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -176,7 +199,6 @@ const Usuarios = () => {
   const safePage = Math.min(currentPage, totalPages);
   const paginatedUsers = filteredUsers.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
 
-  // Reset page when filters change
   const handleSearchChange = (value: string) => {
     setSearchUser(value);
     setCurrentPage(1);
@@ -263,7 +285,6 @@ const Usuarios = () => {
         </Dialog>
       </div>
 
-      {/* Password Reset Dialog */}
       <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
@@ -370,7 +391,6 @@ const Usuarios = () => {
         ))}
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 pt-4">
           <Button variant="outline" size="sm" disabled={safePage <= 1} onClick={() => setCurrentPage(safePage - 1)}>

@@ -8,14 +8,31 @@ import TicketModal from '@/components/tickets/TicketModal';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { FileText, FolderOpen, Clock, CheckCircle, AlertTriangle, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Ticket } from '@/types';
 
 const ITEMS_PER_PAGE = 15;
 
+const DashboardSkeleton = () => (
+  <div className="space-y-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Skeleton key={i} className="h-24 rounded-xl" />
+      ))}
+    </div>
+    <Skeleton className="h-16 rounded-xl" />
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <Skeleton key={i} className="h-48 rounded-xl" />
+      ))}
+    </div>
+  </div>
+);
+
 const Dashboard = () => {
   const { isAdmin } = useAuth();
-  const { tickets, users, markTicketAsRead } = useData();
+  const { tickets, users, loading, markTicketAsRead } = useData();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -50,6 +67,10 @@ const Dashboard = () => {
     return <Navigate to="/meus-chamados" replace />;
   }
 
+  if (loading) {
+    return <DashboardSkeleton />;
+  }
+
   const totalTickets = tickets.length;
   const openTickets = tickets.filter(t => t.status === 'open').length;
   const inProgressTickets = tickets.filter(t => t.status === 'in_progress').length;
@@ -62,7 +83,6 @@ const Dashboard = () => {
     currentPage * ITEMS_PER_PAGE
   );
 
-  // Reset page when filters change
   const handleStatusFilterChange = (value: string) => {
     setStatusFilter(value);
     setCurrentPage(1);
@@ -140,7 +160,6 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 pt-4">
           <Button
