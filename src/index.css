@@ -185,3 +185,53 @@
     }
   }
 }
+
+/* IArpe Assistant Animations */
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes iarpe-type {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  25% { transform: rotate(-1deg) translateY(-1px); }
+  75% { transform: rotate(1deg) translateY(-1px); }
+}
+
+@keyframes iarpe-explain {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.03) rotate(-2deg); }
+  75% { transform: scale(1.03) rotate(2deg); }
+}
+
+@keyframes iarpe-alert-anim {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(1.08); }
+  50% { transform: scale(0.95); }
+  75% { transform: scale(1.05); }
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 3s ease-in-out infinite;
+}
+
+.iarpe-typing {
+  animation: iarpe-type 0.4s ease-in-out infinite;
+}
+
+.iarpe-explaining {
+  animation: iarpe-explain 1.2s ease-in-out infinite;
+}
+
+.iarpe-alert {
+  animation: iarpe-alert-anim 0.5s ease-in-out infinite;
+}
+
+.iarpe-blink {
+  animation: iarpe-blink-eyes 4s ease-in-out infinite;
+}
+
+@keyframes iarpe-blink-eyes {
+  0%, 90%, 100% { opacity: 0; }
+  95% { opacity: 0.15; background: radial-gradient(ellipse at 38% 40%, hsl(var(--card)) 3px, transparent 3px), radial-gradient(ellipse at 58% 40%, hsl(var(--card)) 3px, transparent 3px); }
+}

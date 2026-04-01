@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import ForcePasswordChange from '@/components/ForcePasswordChange';
+import IArpeAssistant from '@/components/iarpe/IArpeAssistant';
 
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
