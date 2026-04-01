@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Dialog as UsersDialog, DialogContent as UsersDialogContent, DialogHeader as UsersDialogHeader, DialogTitle as UsersDialogTitle, DialogDescription as UsersDialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Plus, Edit, Trash2, Power, Monitor, Users, DollarSign, 
   ShoppingBag, Wrench, Headphones, Building, FileText, 
@@ -31,13 +32,13 @@ const iconOptions = [
   { name: 'Phone', icon: Phone },
   { name: 'Package', icon: Package },
   { name: 'Settings', icon: Settings },
-  { name: 'Flame', icon: Flame },        // GÁS
-  { name: 'Zap', icon: Zap },            // ENERGIA
-  { name: 'Truck', icon: Truck },         // TRANSPORTES
-  { name: 'Crown', icon: Crown },         // DIRETORIA
-  { name: 'Landmark', icon: Landmark },   // PRESIDÊNCIA
-  { name: 'Droplets', icon: Droplets },   // SANEAMENTO
-  { name: 'Scale', icon: Scale },         // JURÍDICO
+  { name: 'Flame', icon: Flame },
+  { name: 'Zap', icon: Zap },
+  { name: 'Truck', icon: Truck },
+  { name: 'Crown', icon: Crown },
+  { name: 'Landmark', icon: Landmark },
+  { name: 'Droplets', icon: Droplets },
+  { name: 'Scale', icon: Scale },
 ];
 
 const getIcon = (iconName: string) => {
@@ -45,9 +46,23 @@ const getIcon = (iconName: string) => {
   return found ? found.icon : Monitor;
 };
 
+const SetoresSkeleton = () => (
+  <div className="space-y-6">
+    <div className="flex justify-between items-center">
+      <Skeleton className="h-7 w-48" />
+      <Skeleton className="h-10 w-36" />
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <Skeleton key={i} className="h-40 rounded-xl" />
+      ))}
+    </div>
+  </div>
+);
+
 const Setores = () => {
   const { isAdmin } = useAuth();
-  const { sectors, users, addSector, updateSector, deleteSector } = useData();
+  const { sectors, users, loading, addSector, updateSector, deleteSector } = useData();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSector, setEditingSector] = useState<Sector | null>(null);
   const [selectedSector, setSelectedSector] = useState<Sector | null>(null);
@@ -61,14 +76,16 @@ const Setores = () => {
     return <Navigate to="/meus-chamados" replace />;
   }
 
+  if (loading) {
+    return <SetoresSkeleton />;
+  }
+
   const filteredSectors = sectors.filter(s =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Check for duplicate name
     const duplicate = sectors.find(
       s => s.name.toLowerCase() === formData.name.trim().toLowerCase() &&
         s.id !== editingSector?.id
@@ -79,20 +96,12 @@ const Setores = () => {
     }
     
     if (editingSector) {
-      updateSector(editingSector.id, {
-        name: formData.name.trim(),
-        icon: formData.icon,
-      });
+      updateSector(editingSector.id, { name: formData.name.trim(), icon: formData.icon });
       toast.success('Setor atualizado!');
     } else {
-      addSector({
-        name: formData.name.trim(),
-        icon: formData.icon,
-        active: true,
-      });
+      addSector({ name: formData.name.trim(), icon: formData.icon, active: true });
       toast.success('Setor criado!');
     }
-    
     resetForm();
   };
 
@@ -104,10 +113,7 @@ const Setores = () => {
 
   const handleEdit = (sector: Sector) => {
     setEditingSector(sector);
-    setFormData({
-      name: sector.name,
-      icon: sector.icon,
-    });
+    setFormData({ name: sector.name, icon: sector.icon });
     setIsDialogOpen(true);
   };
 
@@ -130,12 +136,7 @@ const Setores = () => {
         <div className="flex items-center gap-3 w-full md:w-auto">
           <div className="relative flex-1 md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar setor..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-secondary/50"
-            />
+            <Input placeholder="Buscar setor..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 bg-secondary/50" />
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
@@ -153,12 +154,7 @@ const Setores = () => {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label>Nome do Setor</Label>
-                  <Input
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="bg-secondary/50"
-                    required
-                  />
+                  <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="bg-secondary/50" required />
                 </div>
                 <div className="space-y-2">
                   <Label>Ícone</Label>
@@ -184,12 +180,8 @@ const Setores = () => {
                   </div>
                 </div>
                 <div className="flex justify-end gap-2 pt-4">
-                  <Button type="button" variant="outline" onClick={resetForm}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit" variant="glow">
-                    {editingSector ? 'Salvar' : 'Criar'}
-                  </Button>
+                  <Button type="button" variant="outline" onClick={resetForm}>Cancelar</Button>
+                  <Button type="submit" variant="glow">{editingSector ? 'Salvar' : 'Criar'}</Button>
                 </div>
               </form>
             </DialogContent>
@@ -201,26 +193,14 @@ const Setores = () => {
         {filteredSectors.map((sector) => {
           const Icon = getIcon(sector.icon);
           return (
-            <div
-              key={sector.id}
-              className={cn(
-                'bg-card rounded-xl p-5 border glow-card card-hover-effect',
-                !sector.active && 'opacity-60'
-              )}
-            >
-              <div
-                className="flex items-center gap-4 mb-4 cursor-pointer"
-                onClick={() => setSelectedSector(sector)}
-              >
+            <div key={sector.id} className={cn('bg-card rounded-xl p-5 border glow-card card-hover-effect', !sector.active && 'opacity-60')}>
+              <div className="flex items-center gap-4 mb-4 cursor-pointer" onClick={() => setSelectedSector(sector)}>
                 <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center">
                   <Icon className="w-7 h-7 text-primary" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-foreground">{sector.name}</h3>
-                  <p className={cn(
-                    'text-sm',
-                    sector.active ? 'text-success' : 'text-critical'
-                  )}>
+                  <p className={cn('text-sm', sector.active ? 'text-success' : 'text-critical')}>
                     {sector.active ? 'Ativo' : 'Inativo'}
                   </p>
                   <p className="text-xs text-muted-foreground">
@@ -228,11 +208,9 @@ const Setores = () => {
                   </p>
                 </div>
               </div>
-
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => handleEdit(sector)} className="flex-1">
-                  <Edit className="w-3 h-3 mr-1" />
-                  Editar
+                  <Edit className="w-3 h-3 mr-1" /> Editar
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => handleToggleActive(sector)}>
                   <Power className="w-3 h-3" />
@@ -247,21 +225,14 @@ const Setores = () => {
       </div>
 
       {filteredSectors.length === 0 && (
-        <div className="text-center py-8 text-muted-foreground">
-          Nenhum setor encontrado
-        </div>
+        <div className="text-center py-8 text-muted-foreground">Nenhum setor encontrado</div>
       )}
 
-      {/* Users in Sector Dialog */}
       <UsersDialog open={!!selectedSector} onOpenChange={() => setSelectedSector(null)}>
         <UsersDialogContent className="bg-card border-border max-w-md">
           <UsersDialogHeader>
-            <UsersDialogTitle className="text-foreground">
-              Usuários - {selectedSector?.name}
-            </UsersDialogTitle>
-            <UsersDialogDescription>
-              Lista de usuários cadastrados neste setor
-            </UsersDialogDescription>
+            <UsersDialogTitle className="text-foreground">Usuários - {selectedSector?.name}</UsersDialogTitle>
+            <UsersDialogDescription>Lista de usuários cadastrados neste setor</UsersDialogDescription>
           </UsersDialogHeader>
           <ScrollArea className="max-h-[60vh]">
             {(() => {
@@ -274,19 +245,14 @@ const Setores = () => {
                         <p className="text-sm font-medium text-foreground">{u.name}</p>
                         <p className="text-xs text-muted-foreground">@{u.username}</p>
                       </div>
-                      <span className={cn(
-                        'text-xs px-2 py-1 rounded-full',
-                        u.active ? 'bg-success/10 text-success' : 'bg-critical/10 text-critical'
-                      )}>
+                      <span className={cn('text-xs px-2 py-1 rounded-full', u.active ? 'bg-success/10 text-success' : 'bg-critical/10 text-critical')}>
                         {u.active ? 'Ativo' : 'Inativo'}
                       </span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Nenhum usuário neste setor
-                </p>
+                <p className="text-sm text-muted-foreground text-center py-4">Nenhum usuário neste setor</p>
               );
             })()}
           </ScrollArea>
