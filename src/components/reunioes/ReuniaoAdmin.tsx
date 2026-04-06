@@ -473,12 +473,38 @@ const ReuniaoAdmin = () => {
 
               <div className="space-y-3 border-t border-border pt-4">
                 <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Package className="w-4 h-4 text-primary" /> Cadastrar Equipamento Emprestado</h4>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="space-y-1"><Label className="text-xs">Descrição</Label><Input value={newItemDesc} onChange={e => setNewItemDesc(e.target.value)} placeholder="Ex: Notebook Dell" /></div>
-                  <div className="space-y-1"><Label className="text-xs">Quantidade</Label><Input type="number" min="1" value={newItemQty} onChange={e => setNewItemQty(e.target.value)} /></div>
-                  <div className="space-y-1"><Label className="text-xs">Tombamento</Label><Input value={newItemTomb} onChange={e => setNewItemTomb(e.target.value)} placeholder="Opcional" /></div>
+                
+                {/* Select from inventory */}
+                <div className="space-y-2">
+                  <Label className="text-xs">Selecionar do Inventário</Label>
+                  <div className="flex gap-2">
+                    <Select value={selectedEquipmentId} onValueChange={setSelectedEquipmentId}>
+                      <SelectTrigger className="flex-1"><SelectValue placeholder="Selecione um equipamento cadastrado" /></SelectTrigger>
+                      <SelectContent>
+                        {inventoryEquipment.filter(e => e.status === 'disponivel').map(eq => (
+                          <SelectItem key={eq.id} value={eq.id}>
+                            {eq.type} - {eq.brand}{eq.tombamento ? ` (${eq.tombamento})` : ''}
+                          </SelectItem>
+                        ))}
+                        {inventoryEquipment.filter(e => e.status === 'disponivel').length === 0 && (
+                          <SelectItem value="none" disabled>Nenhum equipamento disponível</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <Button size="sm" onClick={handleAddItem} disabled={!selectedEquipmentId}>Emprestar</Button>
+                  </div>
                 </div>
-                <Button size="sm" onClick={handleAddItem} disabled={!newItemDesc.trim()}>Adicionar</Button>
+
+                {/* Manual entry */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Ou cadastro manual:</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1"><Label className="text-xs">Descrição</Label><Input value={newItemDesc} onChange={e => setNewItemDesc(e.target.value)} placeholder="Ex: Notebook Dell" /></div>
+                    <div className="space-y-1"><Label className="text-xs">Quantidade</Label><Input type="number" min="1" value={newItemQty} onChange={e => setNewItemQty(e.target.value)} /></div>
+                    <div className="space-y-1"><Label className="text-xs">Tombamento</Label><Input value={newItemTomb} onChange={e => setNewItemTomb(e.target.value)} placeholder="Opcional" /></div>
+                  </div>
+                  <Button size="sm" onClick={handleAddItem} disabled={!newItemDesc.trim()}>Adicionar Manual</Button>
+                </div>
               </div>
 
               {selectedMeeting.admin_items.length > 0 && (
