@@ -170,6 +170,11 @@ const Relatorios = () => {
     if (exportMonth) filtered = filtered.filter(t => (new Date(t.created_at).getMonth() + 1).toString().padStart(2, '0') === exportMonth);
     if (exportDay) filtered = filtered.filter(t => new Date(t.created_at).getDate().toString().padStart(2, '0') === exportDay);
 
+    if (filtered.length === 0) {
+      toast.error('Nenhum chamado encontrado para o período selecionado.');
+      return;
+    }
+
     const rows = filtered.map((t, i) => ({
       'Nº': i + 1,
       'Título': t.title,
@@ -182,25 +187,25 @@ const Relatorios = () => {
       'Avaliação': t.rating ? `${t.rating} estrelas` : 'Sem avaliação',
     }));
 
+    const headers = Object.keys(rows[0]);
+
     if (formatType === 'csv') {
-      const headers = Object.keys(rows[0] || {}).join(',');
       const csvRows = rows.map(r => Object.values(r).map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
-      const csv = [headers, ...csvRows].join('\n');
+      const csv = [headers.join(','), ...csvRows].join('\n');
       const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url; a.download = `relatorio_chamados_${format(new Date(), 'yyyyMMdd')}.csv`; a.click();
       URL.revokeObjectURL(url);
     } else {
-      // Simple XLSX-like format using TSV with .xlsx extension (opens in Excel)
-      const headers = Object.keys(rows[0] || {}).join('\t');
       const tsvRows = rows.map(r => Object.values(r).join('\t'));
-      const tsv = [headers, ...tsvRows].join('\n');
+      const tsv = [headers.join('\t'), ...tsvRows].join('\n');
       const blob = new Blob(['\ufeff' + tsv], { type: 'application/vnd.ms-excel;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url; a.download = `relatorio_chamados_${format(new Date(), 'yyyyMMdd')}.xlsx`; a.click();
       URL.revokeObjectURL(url);
     }
     setExportDialogOpen(false);
+    toast.success('Relatório exportado com sucesso!');
   };
 
   const years = [...new Set(tickets.map(t => new Date(t.created_at).getFullYear().toString()))].sort().reverse();
