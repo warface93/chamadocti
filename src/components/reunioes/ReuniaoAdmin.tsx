@@ -96,6 +96,8 @@ const ReuniaoAdmin = () => {
   const [newItemTomb, setNewItemTomb] = useState('');
   const [savingStatus, setSavingStatus] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [inventoryEquipment, setInventoryEquipment] = useState<InventoryEquipment[]>([]);
+  const [selectedEquipmentId, setSelectedEquipmentId] = useState('');
 
   // Search filters
   const [searchDate, setSearchDate] = useState('');
