@@ -12,7 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Headphones, Lock, User, Mail, UserPlus, Phone } from 'lucide-react';
+import { Lock, User, Mail, UserPlus, Phone } from 'lucide-react';
+import logoArpe from '@/assets/logo_arpe.png';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -192,8 +193,8 @@ const Login = () => {
       <div className="w-full max-w-md relative z-10">
         <div className="glow-card bg-card rounded-2xl p-8 border border-border">
           <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 glow-card">
-              <Headphones className="w-8 h-8 text-primary" />
+            <div className="w-20 h-20 flex items-center justify-center mb-4">
+              <img src={logoArpe} alt="Logo ARPE" className="w-20 h-20 object-contain" />
             </div>
             <h1 className="text-2xl font-bold gradient-text">CTIChamados</h1>
             <p className="text-muted-foreground mt-2">

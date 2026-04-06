@@ -68,6 +68,68 @@
     --sidebar-border: 217 33% 20%;
     --sidebar-ring: 190 95% 50%;
   }
+
+  .light {
+    --background: 0 0% 97%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 190 95% 40%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 214 32% 91%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 214 32% 91%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 190 95% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 11%;
+
+    --critical: 0 84% 60%;
+    --critical-foreground: 0 0% 100%;
+
+    --in-progress: 38 92% 50%;
+    --in-progress-foreground: 222 47% 11%;
+
+    --open: 190 95% 40%;
+    --open-foreground: 0 0% 100%;
+
+    --resolved: 142 76% 36%;
+    --resolved-foreground: 0 0% 100%;
+
+    --border: 214 32% 83%;
+    --input: 214 32% 91%;
+    --ring: 190 95% 40%;
+
+    --glow-primary: 0 0 10px hsl(190 95% 40% / 0.15);
+    --glow-critical: 0 0 10px hsl(0 84% 60% / 0.15);
+    --glow-success: 0 0 10px hsl(142 76% 36% / 0.15);
+    --glow-warning: 0 0 10px hsl(38 92% 50% / 0.15);
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 190 95% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 214 32% 91%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 83%;
+    --sidebar-ring: 190 95% 40%;
+  }
 }
 
 @layer base {

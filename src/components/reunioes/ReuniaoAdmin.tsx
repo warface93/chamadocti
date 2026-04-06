@@ -44,6 +44,15 @@ interface AdminItem {
   tombamento: string | null;
 }
 
+interface InventoryEquipment {
+  id: string;
+  type: string;
+  brand: string;
+  tombamento: string | null;
+  status: string;
+  current_meeting_id: string | null;
+}
+
 const EQUIPMENT_LABELS: Record<string, string> = {
   notebook: 'Notebook', webcam: 'Webcam', microfone: 'Microfone',
   link_reuniao: 'Link de Reunião', caixa_som: 'Caixa de Som', sem_equipamentos: 'Sem Equipamentos',
@@ -87,6 +96,8 @@ const ReuniaoAdmin = () => {
   const [newItemTomb, setNewItemTomb] = useState('');
   const [savingStatus, setSavingStatus] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [inventoryEquipment, setInventoryEquipment] = useState<InventoryEquipment[]>([]);
+  const [selectedEquipmentId, setSelectedEquipmentId] = useState('');
 
   // Search filters
   const [searchDate, setSearchDate] = useState('');
@@ -104,12 +115,18 @@ const ReuniaoAdmin = () => {
 
   useEffect(() => {
     fetchMeetings();
+    fetchInventory();
     const channel = supabase
       .channel('meetings-admin-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'meetings' }, () => { fetchMeetings(); })
       .subscribe();
     return () => { channel.unsubscribe(); };
   }, []);
+
+  const fetchInventory = async () => {
+    const { data } = await supabase.from('equipment_inventory').select('*').eq('active', true);
+    if (data) setInventoryEquipment(data as InventoryEquipment[]);
+  };
 
   const fetchMeetings = async () => {
     try {
@@ -167,6 +184,13 @@ const ReuniaoAdmin = () => {
     if (error) {
       toast({ title: 'Erro ao atualizar status', variant: 'destructive' });
     } else {
+      // If status changed to devolvido, release all equipment linked to this meeting
+      if (newStatus === 'devolvido') {
+        await supabase.from('equipment_inventory')
+          .update({ status: 'disponivel', current_meeting_id: null } as any)
+          .eq('current_meeting_id', meetingId);
+        fetchInventory();
+      }
       toast({ title: 'Status atualizado com sucesso!' });
       fetchMeetings();
       setDialogOpen(false);
@@ -186,28 +210,65 @@ const ReuniaoAdmin = () => {
     if (error) {
       toast({ title: 'Erro ao finalizar reunião', variant: 'destructive' });
     } else {
+      if (newStatus === 'devolvido') {
+        await supabase.from('equipment_inventory')
+          .update({ status: 'disponivel', current_meeting_id: null } as any)
+          .eq('current_meeting_id', meetingId);
+        fetchInventory();
+      }
       toast({ title: isSemEquipamentos ? 'Reunião finalizada e devolvida!' : 'Reunião finalizada!' });
       fetchMeetings();
     }
   };
 
   const handleAddItem = async () => {
-    if (!selectedMeeting || !newItemDesc.trim()) return;
-    const { error } = await supabase.from('meeting_admin_items').insert({
-      meeting_id: selectedMeeting.id,
-      description: newItemDesc.trim(),
-      quantity: parseInt(newItemQty) || 1,
-      tombamento: newItemTomb.trim() || null,
-    });
-    if (error) {
-      toast({ title: 'Erro ao cadastrar equipamento', variant: 'destructive' });
-    } else {
+    if (!selectedMeeting) return;
+
+    // If an inventory equipment is selected, use it
+    if (selectedEquipmentId) {
+      const eq = inventoryEquipment.find(e => e.id === selectedEquipmentId);
+      if (!eq) return;
+
+      const { error } = await supabase.from('meeting_admin_items').insert({
+        meeting_id: selectedMeeting.id,
+        description: `${eq.type} - ${eq.brand}`,
+        quantity: 1,
+        tombamento: eq.tombamento,
+      });
+      if (error) {
+        toast({ title: 'Erro ao cadastrar equipamento', variant: 'destructive' });
+        return;
+      }
+
+      // Mark equipment as loaned
+      await supabase.from('equipment_inventory')
+        .update({ status: 'em_emprestimo', current_meeting_id: selectedMeeting.id } as any)
+        .eq('id', eq.id);
+
+      toast({ title: 'Equipamento emprestado!' });
+      setSelectedEquipmentId('');
+      fetchInventory();
+    } else if (newItemDesc.trim()) {
+      // Manual entry fallback
+      const { error } = await supabase.from('meeting_admin_items').insert({
+        meeting_id: selectedMeeting.id,
+        description: newItemDesc.trim(),
+        quantity: parseInt(newItemQty) || 1,
+        tombamento: newItemTomb.trim() || null,
+      });
+      if (error) {
+        toast({ title: 'Erro ao cadastrar equipamento', variant: 'destructive' });
+        return;
+      }
       toast({ title: 'Equipamento cadastrado!' });
       setNewItemDesc(''); setNewItemQty('1'); setNewItemTomb('');
-      fetchMeetings();
-      const { data: items } = await supabase.from('meeting_admin_items').select('*').eq('meeting_id', selectedMeeting.id);
-      setSelectedMeeting(prev => prev ? { ...prev, admin_items: (items as AdminItem[]) || [] } : null);
+    } else {
+      return;
     }
+
+    fetchMeetings();
+    const { data: items } = await supabase.from('meeting_admin_items').select('*').eq('meeting_id', selectedMeeting.id);
+    setSelectedMeeting(prev => prev ? { ...prev, admin_items: (items as AdminItem[]) || [] } : null);
   };
 
   const openDetail = (meeting: MeetingWithDetails) => { setSelectedMeeting(meeting); setDialogOpen(true); };
@@ -412,12 +473,38 @@ const ReuniaoAdmin = () => {
 
               <div className="space-y-3 border-t border-border pt-4">
                 <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Package className="w-4 h-4 text-primary" /> Cadastrar Equipamento Emprestado</h4>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="space-y-1"><Label className="text-xs">Descrição</Label><Input value={newItemDesc} onChange={e => setNewItemDesc(e.target.value)} placeholder="Ex: Notebook Dell" /></div>
-                  <div className="space-y-1"><Label className="text-xs">Quantidade</Label><Input type="number" min="1" value={newItemQty} onChange={e => setNewItemQty(e.target.value)} /></div>
-                  <div className="space-y-1"><Label className="text-xs">Tombamento</Label><Input value={newItemTomb} onChange={e => setNewItemTomb(e.target.value)} placeholder="Opcional" /></div>
+                
+                {/* Select from inventory */}
+                <div className="space-y-2">
+                  <Label className="text-xs">Selecionar do Inventário</Label>
+                  <div className="flex gap-2">
+                    <Select value={selectedEquipmentId} onValueChange={setSelectedEquipmentId}>
+                      <SelectTrigger className="flex-1"><SelectValue placeholder="Selecione um equipamento cadastrado" /></SelectTrigger>
+                      <SelectContent>
+                        {inventoryEquipment.filter(e => e.status === 'disponivel').map(eq => (
+                          <SelectItem key={eq.id} value={eq.id}>
+                            {eq.type} - {eq.brand}{eq.tombamento ? ` (${eq.tombamento})` : ''}
+                          </SelectItem>
+                        ))}
+                        {inventoryEquipment.filter(e => e.status === 'disponivel').length === 0 && (
+                          <SelectItem value="none" disabled>Nenhum equipamento disponível</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <Button size="sm" onClick={handleAddItem} disabled={!selectedEquipmentId}>Emprestar</Button>
+                  </div>
                 </div>
-                <Button size="sm" onClick={handleAddItem} disabled={!newItemDesc.trim()}>Adicionar</Button>
+
+                {/* Manual entry */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Ou cadastro manual:</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1"><Label className="text-xs">Descrição</Label><Input value={newItemDesc} onChange={e => setNewItemDesc(e.target.value)} placeholder="Ex: Notebook Dell" /></div>
+                    <div className="space-y-1"><Label className="text-xs">Quantidade</Label><Input type="number" min="1" value={newItemQty} onChange={e => setNewItemQty(e.target.value)} /></div>
+                    <div className="space-y-1"><Label className="text-xs">Tombamento</Label><Input value={newItemTomb} onChange={e => setNewItemTomb(e.target.value)} placeholder="Opcional" /></div>
+                  </div>
+                  <Button size="sm" onClick={handleAddItem} disabled={!newItemDesc.trim()}>Adicionar Manual</Button>
+                </div>
               </div>
 
               {selectedMeeting.admin_items.length > 0 && (
