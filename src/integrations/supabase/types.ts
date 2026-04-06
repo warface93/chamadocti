@@ -19,7 +19,9 @@ export type Database = {
           active: boolean
           brand: string
           created_at: string
+          current_meeting_id: string | null
           id: string
+          status: string
           tombamento: string | null
           type: string
           updated_at: string
@@ -28,7 +30,9 @@ export type Database = {
           active?: boolean
           brand: string
           created_at?: string
+          current_meeting_id?: string | null
           id?: string
+          status?: string
           tombamento?: string | null
           type: string
           updated_at?: string
@@ -37,12 +41,22 @@ export type Database = {
           active?: boolean
           brand?: string
           created_at?: string
+          current_meeting_id?: string | null
           id?: string
+          status?: string
           tombamento?: string | null
           type?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "equipment_inventory_current_meeting_id_fkey"
+            columns: ["current_meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       meeting_admin_items: {
         Row: {
