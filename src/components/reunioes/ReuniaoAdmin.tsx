@@ -184,6 +184,13 @@ const ReuniaoAdmin = () => {
     if (error) {
       toast({ title: 'Erro ao atualizar status', variant: 'destructive' });
     } else {
+      // If status changed to devolvido, release all equipment linked to this meeting
+      if (newStatus === 'devolvido') {
+        await supabase.from('equipment_inventory')
+          .update({ status: 'disponivel', current_meeting_id: null } as any)
+          .eq('current_meeting_id', meetingId);
+        fetchInventory();
+      }
       toast({ title: 'Status atualizado com sucesso!' });
       fetchMeetings();
       setDialogOpen(false);
@@ -203,28 +210,65 @@ const ReuniaoAdmin = () => {
     if (error) {
       toast({ title: 'Erro ao finalizar reunião', variant: 'destructive' });
     } else {
+      if (newStatus === 'devolvido') {
+        await supabase.from('equipment_inventory')
+          .update({ status: 'disponivel', current_meeting_id: null } as any)
+          .eq('current_meeting_id', meetingId);
+        fetchInventory();
+      }
       toast({ title: isSemEquipamentos ? 'Reunião finalizada e devolvida!' : 'Reunião finalizada!' });
       fetchMeetings();
     }
   };
 
   const handleAddItem = async () => {
-    if (!selectedMeeting || !newItemDesc.trim()) return;
-    const { error } = await supabase.from('meeting_admin_items').insert({
-      meeting_id: selectedMeeting.id,
-      description: newItemDesc.trim(),
-      quantity: parseInt(newItemQty) || 1,
-      tombamento: newItemTomb.trim() || null,
-    });
-    if (error) {
-      toast({ title: 'Erro ao cadastrar equipamento', variant: 'destructive' });
-    } else {
+    if (!selectedMeeting) return;
+
+    // If an inventory equipment is selected, use it
+    if (selectedEquipmentId) {
+      const eq = inventoryEquipment.find(e => e.id === selectedEquipmentId);
+      if (!eq) return;
+
+      const { error } = await supabase.from('meeting_admin_items').insert({
+        meeting_id: selectedMeeting.id,
+        description: `${eq.type} - ${eq.brand}`,
+        quantity: 1,
+        tombamento: eq.tombamento,
+      });
+      if (error) {
+        toast({ title: 'Erro ao cadastrar equipamento', variant: 'destructive' });
+        return;
+      }
+
+      // Mark equipment as loaned
+      await supabase.from('equipment_inventory')
+        .update({ status: 'em_emprestimo', current_meeting_id: selectedMeeting.id } as any)
+        .eq('id', eq.id);
+
+      toast({ title: 'Equipamento emprestado!' });
+      setSelectedEquipmentId('');
+      fetchInventory();
+    } else if (newItemDesc.trim()) {
+      // Manual entry fallback
+      const { error } = await supabase.from('meeting_admin_items').insert({
+        meeting_id: selectedMeeting.id,
+        description: newItemDesc.trim(),
+        quantity: parseInt(newItemQty) || 1,
+        tombamento: newItemTomb.trim() || null,
+      });
+      if (error) {
+        toast({ title: 'Erro ao cadastrar equipamento', variant: 'destructive' });
+        return;
+      }
       toast({ title: 'Equipamento cadastrado!' });
       setNewItemDesc(''); setNewItemQty('1'); setNewItemTomb('');
-      fetchMeetings();
-      const { data: items } = await supabase.from('meeting_admin_items').select('*').eq('meeting_id', selectedMeeting.id);
-      setSelectedMeeting(prev => prev ? { ...prev, admin_items: (items as AdminItem[]) || [] } : null);
+    } else {
+      return;
     }
+
+    fetchMeetings();
+    const { data: items } = await supabase.from('meeting_admin_items').select('*').eq('meeting_id', selectedMeeting.id);
+    setSelectedMeeting(prev => prev ? { ...prev, admin_items: (items as AdminItem[]) || [] } : null);
   };
 
   const openDetail = (meeting: MeetingWithDetails) => { setSelectedMeeting(meeting); setDialogOpen(true); };
