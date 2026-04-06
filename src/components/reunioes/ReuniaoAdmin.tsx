@@ -115,12 +115,18 @@ const ReuniaoAdmin = () => {
 
   useEffect(() => {
     fetchMeetings();
+    fetchInventory();
     const channel = supabase
       .channel('meetings-admin-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'meetings' }, () => { fetchMeetings(); })
       .subscribe();
     return () => { channel.unsubscribe(); };
   }, []);
+
+  const fetchInventory = async () => {
+    const { data } = await supabase.from('equipment_inventory').select('*').eq('active', true);
+    if (data) setInventoryEquipment(data as InventoryEquipment[]);
+  };
 
   const fetchMeetings = async () => {
     try {
