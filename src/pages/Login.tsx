@@ -12,7 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Headphones, Lock, User, Mail, UserPlus, Phone } from 'lucide-react';
+import { Lock, User, Mail, UserPlus, Phone } from 'lucide-react';
+import logoArpe from '@/assets/logo_arpe.png';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
