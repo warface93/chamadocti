@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, Edit, Trash2, Search, Monitor, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -17,6 +18,8 @@ interface Equipment {
   brand: string;
   tombamento: string | null;
   active: boolean;
+  status: string;
+  current_meeting_id: string | null;
   created_at: string;
 }
 
@@ -41,7 +44,7 @@ const Equipamentos = () => {
       .from('equipment_inventory')
       .select('*')
       .order('created_at', { ascending: false });
-    if (!error && data) setEquipment(data);
+    if (!error && data) setEquipment(data as Equipment[]);
     setLoading(false);
   };
 
@@ -157,28 +160,39 @@ const Equipamentos = () => {
       </div>
 
       <div className="bg-card rounded-xl border border-border overflow-hidden">
-        <div className="grid grid-cols-4 gap-4 p-4 border-b border-border text-sm font-semibold text-muted-foreground">
+        <div className="grid grid-cols-5 gap-4 p-4 border-b border-border text-sm font-semibold text-muted-foreground">
           <span>Tipo</span>
           <span>Marca</span>
           <span>Tombamento</span>
+          <span>Status</span>
           <span className="text-right">Ações</span>
         </div>
         {paginated.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">Nenhum equipamento encontrado</div>
         ) : (
           paginated.map(item => (
-            <div key={item.id} className="grid grid-cols-4 gap-4 p-4 border-b border-border/50 hover:bg-secondary/20 transition-colors items-center">
+            <div key={item.id} className={cn(
+              "grid grid-cols-5 gap-4 p-4 border-b border-border/50 hover:bg-secondary/20 transition-colors items-center",
+              item.status === 'em_emprestimo' && 'opacity-60'
+            )}>
               <span className="text-foreground font-medium flex items-center gap-2">
                 <Monitor className="w-4 h-4 text-primary" />
                 {item.type}
               </span>
               <span className="text-foreground">{item.brand}</span>
               <span className="text-muted-foreground">{item.tombamento || '—'}</span>
+              <span>
+                <Badge variant={item.status === 'disponivel' ? 'default' : 'secondary'} className={cn(
+                  item.status === 'disponivel' ? 'bg-success text-success-foreground' : 'bg-warning text-warning-foreground'
+                )}>
+                  {item.status === 'disponivel' ? 'Disponível' : 'Em Empréstimo'}
+                </Badge>
+              </span>
               <div className="flex justify-end gap-2">
                 <Button size="sm" variant="outline" onClick={() => handleEdit(item)}>
                   <Edit className="w-3 h-3" />
                 </Button>
-                <Button size="sm" variant="destructive" onClick={() => handleDelete(item.id)}>
+                <Button size="sm" variant="destructive" onClick={() => handleDelete(item.id)} disabled={item.status === 'em_emprestimo'}>
                   <Trash2 className="w-3 h-3" />
                 </Button>
               </div>
