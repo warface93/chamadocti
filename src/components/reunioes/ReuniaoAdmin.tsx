@@ -44,6 +44,15 @@ interface AdminItem {
   tombamento: string | null;
 }
 
+interface InventoryEquipment {
+  id: string;
+  type: string;
+  brand: string;
+  tombamento: string | null;
+  status: string;
+  current_meeting_id: string | null;
+}
+
 const EQUIPMENT_LABELS: Record<string, string> = {
   notebook: 'Notebook', webcam: 'Webcam', microfone: 'Microfone',
   link_reuniao: 'Link de Reunião', caixa_som: 'Caixa de Som', sem_equipamentos: 'Sem Equipamentos',
