@@ -15,7 +15,11 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
-const Sidebar = () => {
+interface SidebarProps {
+  onNavigate?: () => void;
+}
+
+const Sidebar = ({ onNavigate }: SidebarProps) => {
   const { user, logout, isAdmin } = useAuth();
   const location = useLocation();
 
@@ -55,6 +59,7 @@ const Sidebar = () => {
           <NavLink
             key={link.to}
             to={link.to}
+            onClick={onNavigate}
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200',
