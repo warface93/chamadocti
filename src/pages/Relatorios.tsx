@@ -13,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, isToday, isThisMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -43,7 +42,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 type DrilldownType = 'sector' | 'user' | 'category' | null;
-type TicketFilter = 'total' | 'month' | 'day';
+type TicketFilter = 'total' | 'month' | 'day' | 'year';
 
 const RelatoriosSkeleton = () => (
   <div className="space-y-6">
@@ -66,20 +65,29 @@ const Relatorios = () => {
   const [activeStatusIndex, setActiveStatusIndex] = useState<number | null>(null);
   const [activeBarIndex, setActiveBarIndex] = useState<number | null>(null);
   const [ticketFilter, setTicketFilter] = useState<TicketFilter>('total');
+  const [selectedYear, setSelectedYear] = useState<string>('');
 
   // Export state
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportDay, setExportDay] = useState('');
-  const [exportMonth, setExportMonth] = useState('');
-  const [exportYear, setExportYear] = useState('');
+  const [exportMonth, setExportMonth] = useState('todos');
+  const [exportYear, setExportYear] = useState('todos');
+
+  const availableYears = useMemo(() => {
+    const yearsSet = new Set(tickets.map(t => new Date(t.created_at).getFullYear().toString()));
+    const currentYear = new Date().getFullYear();
+    for (let y = 2026; y <= currentYear + 1; y++) yearsSet.add(y.toString());
+    return [...yearsSet].sort().reverse();
+  }, [tickets]);
 
   const filteredTicketsCount = useMemo(() => {
     switch (ticketFilter) {
       case 'day': return tickets.filter(t => isToday(new Date(t.created_at))).length;
       case 'month': return tickets.filter(t => isThisMonth(new Date(t.created_at))).length;
+      case 'year': return selectedYear ? tickets.filter(t => new Date(t.created_at).getFullYear().toString() === selectedYear).length : tickets.length;
       default: return tickets.length;
     }
-  }, [tickets, ticketFilter]);
+  }, [tickets, ticketFilter, selectedYear]);
 
   const sectorTicketRanking = useMemo(() => {
     return sectors.map(sector => {
@@ -162,104 +170,247 @@ const Relatorios = () => {
 
   const drilldownTickets = getDrilldownTickets();
   const getUserById = (id: string) => users.find(u => u.id === id);
-  const filterLabel = ticketFilter === 'total' ? 'Total' : ticketFilter === 'month' ? 'Este Mês' : 'Hoje';
+  const filterLabel = ticketFilter === 'total' ? 'Total' : ticketFilter === 'month' ? 'Este Mês' : ticketFilter === 'year' ? `Ano ${selectedYear}` : 'Hoje';
 
-  // Export function
+  // Export function with full data
   const handleExport = (formatType: 'csv' | 'xlsx') => {
     let filtered = [...tickets];
-    if (exportYear) filtered = filtered.filter(t => new Date(t.created_at).getFullYear().toString() === exportYear);
-    if (exportMonth) filtered = filtered.filter(t => (new Date(t.created_at).getMonth() + 1).toString().padStart(2, '0') === exportMonth);
-    if (exportDay) filtered = filtered.filter(t => new Date(t.created_at).getDate().toString().padStart(2, '0') === exportDay);
+    if (exportYear !== 'todos') filtered = filtered.filter(t => new Date(t.created_at).getFullYear().toString() === exportYear);
+    if (exportMonth !== 'todos') filtered = filtered.filter(t => (new Date(t.created_at).getMonth() + 1).toString().padStart(2, '0') === exportMonth);
+    if (exportDay) filtered = filtered.filter(t => new Date(t.created_at).getDate().toString().padStart(2, '0') === exportDay.padStart(2, '0'));
 
     if (filtered.length === 0) {
       toast.error('Nenhum chamado encontrado para o período selecionado.');
       return;
     }
 
-    const rows = filtered.map((t, i) => ({
-      'Nº': i + 1,
-      'Título': t.title,
-      'Categoria': CATEGORY_LABELS[t.category] || t.category,
-      'Descrição': t.description || '',
-      'Status': STATUS_LABELS[t.status] || t.status,
-      'Data Abertura': format(new Date(t.created_at), 'dd/MM/yyyy HH:mm'),
-      'Data Atualização': format(new Date(t.updated_at), 'dd/MM/yyyy HH:mm'),
-      'Solicitante': getUserById(t.user_id)?.name || 'Desconhecido',
-      'Avaliação': t.rating ? `${t.rating} estrelas` : 'Sem avaliação',
-    }));
+    toast.info('O relatório será gerado com base nos filtros aplicados.');
 
-    const headers = Object.keys(rows[0]);
+    // Build comprehensive report
+    const filteredRated = filtered.filter(t => t.rating && t.rating > 0);
+    const filteredAvgRating = filteredRated.length > 0 ? filteredRated.reduce((acc, t) => acc + (t.rating || 0), 0) / filteredRated.length : 0;
+
+    // Status counts
+    const statusCounts: Record<string, number> = {};
+    filtered.forEach(t => { const label = STATUS_LABELS[t.status] || t.status; statusCounts[label] = (statusCounts[label] || 0) + 1; });
+
+    // Category counts
+    const categoryCounts: Record<string, number> = {};
+    filtered.forEach(t => { const label = CATEGORY_LABELS[t.category] || t.category; categoryCounts[label] = (categoryCounts[label] || 0) + 1; });
+
+    // Sector counts
+    const sectorCounts: Record<string, number> = {};
+    filtered.forEach(t => {
+      const u = users.find(u => u.id === t.user_id);
+      const s = u ? sectors.find(s => s.id === u.sector_id) : null;
+      const name = s?.name || 'Sem setor';
+      sectorCounts[name] = (sectorCounts[name] || 0) + 1;
+    });
+
+    // Sector ratings
+    const sectorRatingMap: Record<string, { total: number; count: number }> = {};
+    filteredRated.forEach(t => {
+      const u = users.find(u => u.id === t.user_id);
+      const s = u ? sectors.find(s => s.id === u.sector_id) : null;
+      const name = s?.name || 'Sem setor';
+      if (!sectorRatingMap[name]) sectorRatingMap[name] = { total: 0, count: 0 };
+      sectorRatingMap[name].total += t.rating || 0;
+      sectorRatingMap[name].count += 1;
+    });
+
+    // User ratings
+    const userRatingMap: Record<string, { total: number; count: number }> = {};
+    filteredRated.forEach(t => {
+      const u = users.find(u => u.id === t.user_id);
+      const name = u?.name || 'Desconhecido';
+      if (!userRatingMap[name]) userRatingMap[name] = { total: 0, count: 0 };
+      userRatingMap[name].total += t.rating || 0;
+      userRatingMap[name].count += 1;
+    });
+
+    // Category ratings
+    const catRatingMap: Record<string, { total: number; count: number }> = {};
+    filteredRated.forEach(t => {
+      const label = CATEGORY_LABELS[t.category] || t.category;
+      if (!catRatingMap[label]) catRatingMap[label] = { total: 0, count: 0 };
+      catRatingMap[label].total += t.rating || 0;
+      catRatingMap[label].count += 1;
+    });
+
+    const todayFiltered = filtered.filter(t => isToday(new Date(t.created_at))).length;
+    const monthFiltered = filtered.filter(t => isThisMonth(new Date(t.created_at))).length;
 
     if (formatType === 'csv') {
-      const csvRows = rows.map(r => Object.values(r).map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
-      const csv = [headers.join(','), ...csvRows].join('\n');
+      const lines: string[] = [];
+      lines.push('=== RESUMO GERAL ===');
+      lines.push(`Média Geral de Avaliações,${filteredAvgRating.toFixed(1)}`);
+      lines.push(`Total de Chamados,${filtered.length}`);
+      lines.push(`Chamados Hoje,${todayFiltered}`);
+      lines.push(`Chamados Este Mês,${monthFiltered}`);
+      lines.push(`Total de Avaliações,${filteredRated.length}`);
+      lines.push('');
+      lines.push('=== CHAMADOS POR STATUS ===');
+      lines.push('Status,Quantidade');
+      Object.entries(statusCounts).forEach(([k, v]) => lines.push(`${k},${v}`));
+      lines.push('');
+      lines.push('=== TOP SETORES ===');
+      lines.push('Setor,Quantidade');
+      Object.entries(sectorCounts).sort((a, b) => b[1] - a[1]).slice(0, 8).forEach(([k, v]) => lines.push(`${k},${v}`));
+      lines.push('');
+      lines.push('=== TOP CATEGORIAS ===');
+      lines.push('Categoria,Quantidade');
+      Object.entries(categoryCounts).filter(([k]) => k !== 'Outro' && k !== 'Outros').sort((a, b) => b[1] - a[1]).slice(0, 8).forEach(([k, v]) => lines.push(`${k},${v}`));
+      lines.push('');
+      lines.push('=== AVALIAÇÃO POR CATEGORIA ===');
+      lines.push('Categoria,Média,Avaliações');
+      Object.entries(catRatingMap).forEach(([k, v]) => lines.push(`${k},${(v.total / v.count).toFixed(1)},${v.count}`));
+      lines.push('');
+      lines.push('=== AVALIAÇÃO POR SETOR ===');
+      lines.push('Setor,Média,Avaliações');
+      Object.entries(sectorRatingMap).forEach(([k, v]) => lines.push(`${k},${(v.total / v.count).toFixed(1)},${v.count}`));
+      lines.push('');
+      lines.push('=== AVALIAÇÃO POR USUÁRIO ===');
+      lines.push('Usuário,Média,Avaliações');
+      Object.entries(userRatingMap).forEach(([k, v]) => lines.push(`${k},${(v.total / v.count).toFixed(1)},${v.count}`));
+      lines.push('');
+      lines.push('=== LISTA DE CHAMADOS ===');
+      lines.push('Nº,Título,Categoria,Descrição,Status,Data Abertura,Data Atualização,Solicitante,Avaliação');
+      filtered.forEach((t, i) => {
+        const vals = [
+          i + 1, t.title, CATEGORY_LABELS[t.category] || t.category,
+          t.description || '', STATUS_LABELS[t.status] || t.status,
+          format(new Date(t.created_at), 'dd/MM/yyyy HH:mm'),
+          format(new Date(t.updated_at), 'dd/MM/yyyy HH:mm'),
+          getUserById(t.user_id)?.name || 'Desconhecido',
+          t.rating ? `${t.rating} estrelas` : 'Sem avaliação',
+        ];
+        lines.push(vals.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+      });
+
+      const csv = lines.join('\n');
       const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url; a.download = `relatorio_chamados_${format(new Date(), 'yyyyMMdd')}.csv`; a.click();
       URL.revokeObjectURL(url);
     } else {
-      const tsvRows = rows.map(r => Object.values(r).join('\t'));
-      const tsv = [headers.join('\t'), ...tsvRows].join('\n');
+      // Excel format using TSV with multiple sections
+      const lines: string[] = [];
+      lines.push('=== RESUMO GERAL ===');
+      lines.push(`Métrica\tValor`);
+      lines.push(`Média Geral de Avaliações\t${filteredAvgRating.toFixed(1)}`);
+      lines.push(`Total de Chamados\t${filtered.length}`);
+      lines.push(`Chamados Hoje\t${todayFiltered}`);
+      lines.push(`Chamados Este Mês\t${monthFiltered}`);
+      lines.push(`Total de Avaliações\t${filteredRated.length}`);
+      lines.push('');
+      lines.push('=== CHAMADOS POR STATUS ===');
+      lines.push('Status\tQuantidade');
+      Object.entries(statusCounts).forEach(([k, v]) => lines.push(`${k}\t${v}`));
+      lines.push('');
+      lines.push('=== TOP SETORES ===');
+      lines.push('Setor\tQuantidade');
+      Object.entries(sectorCounts).sort((a, b) => b[1] - a[1]).slice(0, 8).forEach(([k, v]) => lines.push(`${k}\t${v}`));
+      lines.push('');
+      lines.push('=== TOP CATEGORIAS ===');
+      lines.push('Categoria\tQuantidade');
+      Object.entries(categoryCounts).filter(([k]) => k !== 'Outro' && k !== 'Outros').sort((a, b) => b[1] - a[1]).slice(0, 8).forEach(([k, v]) => lines.push(`${k}\t${v}`));
+      lines.push('');
+      lines.push('=== AVALIAÇÃO POR CATEGORIA ===');
+      lines.push('Categoria\tMédia\tAvaliações');
+      Object.entries(catRatingMap).forEach(([k, v]) => lines.push(`${k}\t${(v.total / v.count).toFixed(1)}\t${v.count}`));
+      lines.push('');
+      lines.push('=== AVALIAÇÃO POR SETOR ===');
+      lines.push('Setor\tMédia\tAvaliações');
+      Object.entries(sectorRatingMap).forEach(([k, v]) => lines.push(`${k}\t${(v.total / v.count).toFixed(1)}\t${v.count}`));
+      lines.push('');
+      lines.push('=== AVALIAÇÃO POR USUÁRIO ===');
+      lines.push('Usuário\tMédia\tAvaliações');
+      Object.entries(userRatingMap).forEach(([k, v]) => lines.push(`${k}\t${(v.total / v.count).toFixed(1)}\t${v.count}`));
+      lines.push('');
+      lines.push('=== LISTA DE CHAMADOS ===');
+      lines.push('Nº\tTítulo\tCategoria\tDescrição\tStatus\tData Abertura\tData Atualização\tSolicitante\tAvaliação');
+      filtered.forEach((t, i) => {
+        lines.push([
+          i + 1, t.title, CATEGORY_LABELS[t.category] || t.category,
+          t.description || '', STATUS_LABELS[t.status] || t.status,
+          format(new Date(t.created_at), 'dd/MM/yyyy HH:mm'),
+          format(new Date(t.updated_at), 'dd/MM/yyyy HH:mm'),
+          getUserById(t.user_id)?.name || 'Desconhecido',
+          t.rating ? `${t.rating} estrelas` : 'Sem avaliação',
+        ].join('\t'));
+      });
+
+      const tsv = lines.join('\n');
       const blob = new Blob(['\ufeff' + tsv], { type: 'application/vnd.ms-excel;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = `relatorio_chamados_${format(new Date(), 'yyyyMMdd')}.xlsx`; a.click();
+      const a = document.createElement('a'); a.href = url; a.download = `relatorio_chamados_${format(new Date(), 'yyyyMMdd')}.xls`; a.click();
       URL.revokeObjectURL(url);
     }
     setExportDialogOpen(false);
     toast.success('Relatório exportado com sucesso!');
   };
 
-  const years = [...new Set(tickets.map(t => new Date(t.created_at).getFullYear().toString()))].sort().reverse();
   const months = Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1).padStart(2, '0'), label: format(new Date(2024, i, 1), 'MMMM', { locale: ptBR }) }));
 
   return (
     <div className="space-y-6">
       {/* Top stats bar */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-card rounded-xl p-6 border border-border glow-card">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Média Geral de Avaliações</h2>
-          <div className="flex items-center gap-4">
-            <span className="text-5xl font-bold gradient-text">{averageRating.toFixed(1)}</span>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+        <div className="bg-card rounded-xl p-4 md:p-6 border border-border glow-card">
+          <h2 className="text-base md:text-lg font-semibold text-foreground mb-4">Média Geral de Avaliações</h2>
+          <div className="flex items-center gap-3 md:gap-4 flex-wrap">
+            <span className="text-4xl md:text-5xl font-bold gradient-text">{averageRating.toFixed(1)}</span>
             <div className="flex">
               {[1, 2, 3, 4, 5].map((value) => (
-                <Star key={value} className={cn('w-8 h-8', averageRating >= value ? 'fill-warning text-warning' : 'text-muted-foreground')} />
+                <Star key={value} className={cn('w-6 h-6 md:w-8 md:h-8', averageRating >= value ? 'fill-warning text-warning' : 'text-muted-foreground')} />
               ))}
             </div>
-            <span className="text-muted-foreground ml-4">({ratedTickets.length} avaliações)</span>
+            <span className="text-muted-foreground text-sm">({ratedTickets.length} avaliações)</span>
           </div>
         </div>
 
-        <div className="bg-card rounded-xl p-6 border border-border glow-card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-foreground">Total de Chamados</h2>
-            <Select value={ticketFilter} onValueChange={(v) => setTicketFilter(v as TicketFilter)}>
-              <SelectTrigger className="w-[140px] h-9"><SelectValue /></SelectTrigger>
+        <div className="bg-card rounded-xl p-4 md:p-6 border border-border glow-card">
+          <div className="flex items-center justify-between mb-4 gap-2">
+            <h2 className="text-base md:text-lg font-semibold text-foreground">Total de Chamados</h2>
+            <Select value={ticketFilter} onValueChange={(v) => { setTicketFilter(v as TicketFilter); if (v === 'year' && !selectedYear) setSelectedYear(availableYears[0] || '2026'); }}>
+              <SelectTrigger className="w-[130px] h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="total">Total</SelectItem>
                 <SelectItem value="month">Este Mês</SelectItem>
                 <SelectItem value="day">Hoje</SelectItem>
+                <SelectItem value="year">Por Ano</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-5xl font-bold gradient-text">{filteredTicketsCount}</span>
-            <TicketCheck className="w-8 h-8 text-primary" />
-            <span className="text-muted-foreground ml-4">chamados ({filterLabel})</span>
+          {ticketFilter === 'year' && (
+            <div className="mb-3">
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-[120px] h-8"><SelectValue placeholder="Ano" /></SelectTrigger>
+                <SelectContent>
+                  {availableYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div className="flex items-center gap-3 md:gap-4">
+            <span className="text-4xl md:text-5xl font-bold gradient-text">{filteredTicketsCount}</span>
+            <TicketCheck className="w-6 h-6 md:w-8 md:h-8 text-primary" />
+            <span className="text-muted-foreground text-sm">chamados ({filterLabel})</span>
           </div>
         </div>
 
-        <div className="bg-card rounded-xl p-6 border border-border glow-card flex flex-col justify-center">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Exportar Relatório</h2>
+        <div className="bg-card rounded-xl p-4 md:p-6 border border-border glow-card flex flex-col justify-center">
+          <h2 className="text-base md:text-lg font-semibold text-foreground mb-4">Exportar Relatório</h2>
           <Button variant="glow" onClick={() => setExportDialogOpen(true)}>
             <Download className="w-4 h-4 mr-2" /> Baixar relatório de chamados
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Distribuição de avaliações */}
-        <div className="bg-card rounded-xl p-6 border border-border glow-card">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Distribuição de Avaliações</h2>
+        <div className="bg-card rounded-xl p-4 md:p-6 border border-border glow-card">
+          <h2 className="text-base md:text-lg font-semibold text-foreground mb-4">Distribuição de Avaliações</h2>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={ratingDistribution}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(217, 33%, 20%)" />
@@ -276,8 +427,8 @@ const Relatorios = () => {
         </div>
 
         {/* Chamados por status */}
-        <div className="bg-card rounded-xl p-6 border border-border glow-card">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Chamados por Status</h2>
+        <div className="bg-card rounded-xl p-4 md:p-6 border border-border glow-card">
+          <h2 className="text-base md:text-lg font-semibold text-foreground mb-4">Chamados por Status</h2>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
               <Pie data={statusData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value" label={({ name, value }) => `${name}: ${value}`} isAnimationActive={false} onClick={handlePieClick} cursor="pointer">
@@ -290,8 +441,8 @@ const Relatorios = () => {
         </div>
 
         {/* Rankings */}
-        <div className="bg-card rounded-xl p-6 border border-border glow-card">
-          <div className="flex items-center gap-2 mb-4"><Trophy className="w-5 h-5 text-warning" /><h2 className="text-lg font-semibold text-foreground">Top Setores - Chamados</h2></div>
+        <div className="bg-card rounded-xl p-4 md:p-6 border border-border glow-card">
+          <div className="flex items-center gap-2 mb-4"><Trophy className="w-5 h-5 text-warning" /><h2 className="text-base md:text-lg font-semibold text-foreground">Top Setores - Chamados</h2></div>
           {sectorTicketRanking.length > 0 ? (
             <div className="space-y-2">
               {sectorTicketRanking.map((item, index) => {
@@ -311,8 +462,8 @@ const Relatorios = () => {
           ) : <div className="h-[200px] flex items-center justify-center text-muted-foreground">Nenhum dado disponível</div>}
         </div>
 
-        <div className="bg-card rounded-xl p-6 border border-border glow-card">
-          <div className="flex items-center gap-2 mb-4"><Tag className="w-5 h-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">Top Categorias - Chamados</h2></div>
+        <div className="bg-card rounded-xl p-4 md:p-6 border border-border glow-card">
+          <div className="flex items-center gap-2 mb-4"><Tag className="w-5 h-5 text-primary" /><h2 className="text-base md:text-lg font-semibold text-foreground">Top Categorias - Chamados</h2></div>
           {categoryTicketRanking.length > 0 ? (
             <div className="space-y-2">
               {categoryTicketRanking.map((item, index) => {
@@ -333,8 +484,8 @@ const Relatorios = () => {
         </div>
 
         {/* Avaliações por Categoria */}
-        <div className="bg-card rounded-xl p-6 border border-border glow-card">
-          <div className="flex items-center gap-2 mb-4"><Tag className="w-5 h-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">Avaliações por Categoria</h2><span className="text-xs text-muted-foreground">(clique para detalhes)</span></div>
+        <div className="bg-card rounded-xl p-4 md:p-6 border border-border glow-card">
+          <div className="flex items-center gap-2 mb-4"><Tag className="w-5 h-5 text-primary" /><h2 className="text-base md:text-lg font-semibold text-foreground">Avaliações por Categoria</h2><span className="text-xs text-muted-foreground">(clique para detalhes)</span></div>
           <div className="space-y-3">
             {categoryData.map((category) => {
               const categoryTickets = ratedTickets.filter(t => t.category === category.key);
@@ -353,8 +504,8 @@ const Relatorios = () => {
         </div>
 
         {/* Avaliações por setor */}
-        <div className="bg-card rounded-xl p-6 border border-border glow-card">
-          <div className="flex items-center gap-2 mb-4"><Building2 className="w-5 h-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">Avaliações por Setor</h2><span className="text-xs text-muted-foreground">(clique para detalhes)</span></div>
+        <div className="bg-card rounded-xl p-4 md:p-6 border border-border glow-card">
+          <div className="flex items-center gap-2 mb-4"><Building2 className="w-5 h-5 text-primary" /><h2 className="text-base md:text-lg font-semibold text-foreground">Avaliações por Setor</h2><span className="text-xs text-muted-foreground">(clique para detalhes)</span></div>
           {sectorRatings.length > 0 ? (
             <div className="space-y-3">
               {sectorRatings.map((sector) => (
@@ -371,8 +522,8 @@ const Relatorios = () => {
         </div>
 
         {/* Avaliações por usuário */}
-        <div className="bg-card rounded-xl p-6 border border-border glow-card lg:col-span-2">
-          <div className="flex items-center gap-2 mb-4"><User className="w-5 h-5 text-primary" /><h2 className="text-lg font-semibold text-foreground">Avaliações por Usuário</h2><span className="text-xs text-muted-foreground">(clique para detalhes)</span></div>
+        <div className="bg-card rounded-xl p-4 md:p-6 border border-border glow-card lg:col-span-2">
+          <div className="flex items-center gap-2 mb-4"><User className="w-5 h-5 text-primary" /><h2 className="text-base md:text-lg font-semibold text-foreground">Avaliações por Usuário</h2><span className="text-xs text-muted-foreground">(clique para detalhes)</span></div>
           {userRatings.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {userRatings.map((userRating) => (
@@ -433,7 +584,7 @@ const Relatorios = () => {
         <DialogContent className="bg-card border-border max-w-md">
           <DialogHeader>
             <DialogTitle>Exportar Relatório de Chamados</DialogTitle>
-            <DialogDescription>Selecione os filtros de período e o formato desejado.</DialogDescription>
+            <DialogDescription>O relatório será gerado com base nos filtros aplicados. Inclui resumo geral, métricas, rankings e lista completa de chamados.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
@@ -446,7 +597,7 @@ const Relatorios = () => {
                 <Select value={exportMonth} onValueChange={setExportMonth}>
                   <SelectTrigger className="bg-secondary/50"><SelectValue placeholder="Mês" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos</SelectItem>
+                    <SelectItem value="todos">Todos</SelectItem>
                     {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -456,15 +607,15 @@ const Relatorios = () => {
                 <Select value={exportYear} onValueChange={setExportYear}>
                   <SelectTrigger className="bg-secondary/50"><SelectValue placeholder="Ano" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos</SelectItem>
-                    {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                    <SelectItem value="todos">Todos</SelectItem>
+                    {availableYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="flex gap-3">
               <Button variant="glow" className="flex-1" onClick={() => handleExport('xlsx')}>
-                <Download className="w-4 h-4 mr-2" /> Excel (.xlsx)
+                <Download className="w-4 h-4 mr-2" /> Excel (.xls)
               </Button>
               <Button variant="outline" className="flex-1" onClick={() => handleExport('csv')}>
                 <Download className="w-4 h-4 mr-2" /> CSV (.csv)
