@@ -1,4 +1,4 @@
-import { Bell, Moon, Sun } from 'lucide-react';
+import { Bell, Moon, Sun, Menu } from 'lucide-react';
 import { useData } from '@/contexts/DataContext';
 import { cn } from '@/lib/utils';
 import {
@@ -11,9 +11,11 @@ import { useThemeToggle } from '@/hooks/useTheme';
 
 interface HeaderProps {
   title: string;
+  onMenuToggle?: () => void;
+  showMenuButton?: boolean;
 }
 
-const Header = ({ title }: HeaderProps) => {
+const Header = ({ title, onMenuToggle, showMenuButton }: HeaderProps) => {
   const { tickets, getNewTicketsCount, getCriticalTicketsCount, markTicketAsRead } = useData();
   const { isAdmin } = useAuth();
   const { theme, toggleTheme } = useThemeToggle();
@@ -23,10 +25,17 @@ const Header = ({ title }: HeaderProps) => {
   const newTickets = tickets.filter(t => t.is_new);
 
   return (
-    <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between px-6">
-      <h1 className="text-xl font-semibold text-foreground">{title}</h1>
-
+    <header className="h-14 md:h-16 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between px-3 md:px-6">
       <div className="flex items-center gap-2">
+        {showMenuButton && (
+          <button onClick={onMenuToggle} className="p-2 rounded-lg hover:bg-secondary/50 transition-colors">
+            <Menu className="w-5 h-5 text-foreground" />
+          </button>
+        )}
+        <h1 className="text-lg md:text-xl font-semibold text-foreground truncate">{title}</h1>
+      </div>
+
+      <div className="flex items-center gap-1 md:gap-2">
         <button
           onClick={toggleTheme}
           className="p-2 rounded-lg hover:bg-secondary/50 transition-colors"
