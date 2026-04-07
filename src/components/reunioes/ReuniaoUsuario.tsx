@@ -711,34 +711,46 @@ const ReuniaoUsuario = () => {
       )}
 
       {/* Finalized meetings history */}
-      {myHistory.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <History className="w-5 h-5 text-muted-foreground" />
-            Reuniões Finalizadas
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {myHistory.map(m => (
-              <Card key={m.id} className="border-border bg-muted/20 opacity-70">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">{format(new Date(m.meeting_date + 'T00:00:00'), 'dd/MM/yyyy')}</span>
-                    <Badge variant="secondary">Devolvido</Badge>
-                  </div>
-                  {m.theme && <p className="text-xs text-primary font-medium">Tema: {m.theme}</p>}
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-white" /> {m.start_time} - {m.end_time}</span>
-                    <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {m.location}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {m.equipment.map(eq => <Badge key={eq} variant="outline" className="text-xs">{getEquipmentLabel(eq)}</Badge>)}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+      {myHistory.length > 0 && (() => {
+        const historyTotalPages = Math.max(1, Math.ceil(myHistory.length / HISTORY_PER_PAGE));
+        const safeHistoryPage = Math.min(historyPage, historyTotalPages);
+        const paginatedHistory = myHistory.slice((safeHistoryPage - 1) * HISTORY_PER_PAGE, safeHistoryPage * HISTORY_PER_PAGE);
+        return (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <History className="w-5 h-5 text-muted-foreground" />
+              Reuniões Finalizadas ({myHistory.length})
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {paginatedHistory.map(m => (
+                <Card key={m.id} className="border-border bg-muted/20 opacity-70">
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground">{format(new Date(m.meeting_date + 'T00:00:00'), 'dd/MM/yyyy')}</span>
+                      <Badge variant="secondary">Devolvido</Badge>
+                    </div>
+                    {m.theme && <p className="text-xs text-primary font-medium">Tema: {m.theme}</p>}
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-white" /> {m.start_time} - {m.end_time}</span>
+                      <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {m.location}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {m.equipment.map(eq => <Badge key={eq} variant="outline" className="text-xs">{getEquipmentLabel(eq)}</Badge>)}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            {historyTotalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-2">
+                <Button variant="outline" size="sm" disabled={safeHistoryPage <= 1} onClick={() => setHistoryPage(safeHistoryPage - 1)}><ChevronLeft className="w-4 h-4" /></Button>
+                <span className="text-sm text-muted-foreground">Página {safeHistoryPage} de {historyTotalPages}</span>
+                <Button variant="outline" size="sm" disabled={safeHistoryPage >= historyTotalPages} onClick={() => setHistoryPage(safeHistoryPage + 1)}><ChevronRight className="w-4 h-4" /></Button>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* All active meetings (only fixed locations) */}
       <div className="space-y-4">
