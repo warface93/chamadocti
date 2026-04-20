@@ -41,7 +41,7 @@ const Sidebar = ({ onNavigate }: SidebarProps) => {
   const links = isAdmin ? adminLinks : userLinks;
 
   return (
-    <aside className="w-64 min-h-screen bg-sidebar border-r border-sidebar-border flex flex-col">
+    <aside className="w-64 h-screen sticky top-0 bg-sidebar border-r border-sidebar-border flex flex-col overflow-y-auto">
       <div className="p-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
