@@ -490,10 +490,7 @@ const ReuniaoUsuario = () => {
             </div>
 
             <div className="space-y-2">
-              <Label className="flex items-center gap-1">
-                <Clock className="w-3 h-3 text-white" />
-                Horário Início
-              </Label>
+              <Label>Horário Início</Label>
               <div className="flex gap-2">
                 <Select value={startTime} onValueChange={(v) => { setStartTime(v); setCustomStartTime(''); }}>
                   <SelectTrigger className="flex-1"><SelectValue placeholder="Início" /></SelectTrigger>
@@ -518,10 +515,7 @@ const ReuniaoUsuario = () => {
             </div>
 
             <div className="space-y-2">
-              <Label className="flex items-center gap-1">
-                <Clock className="w-3 h-3 text-white" />
-                Horário Término
-              </Label>
+              <Label>Horário Término</Label>
               <div className="flex gap-2">
                 <Select value={endTime} onValueChange={(v) => { setEndTime(v); setCustomEndTime(''); }}>
                   <SelectTrigger className="flex-1"><SelectValue placeholder="Término" /></SelectTrigger>
