@@ -491,51 +491,45 @@ const ReuniaoUsuario = () => {
 
             <div className="space-y-2">
               <Label>Horário Início</Label>
-              <div className="flex gap-2">
-                <Select value={startTime} onValueChange={(v) => { setStartTime(v); setCustomStartTime(''); }}>
-                  <SelectTrigger className="flex-1"><SelectValue placeholder="Início" /></SelectTrigger>
-                  <SelectContent>
-                    {TIME_SLOTS.map(t => {
-                      const taken = location && FIXED_LOCATIONS.includes(location) ? isTimeSlotTaken(t, location) : false;
-                      const passed = isTimePassed(t, date);
-                      return (
-                        <SelectItem key={t} value={t} disabled={taken || passed}>
-                          <span className="flex items-center gap-2">
-                            {t}
-                            {taken && <span className="text-destructive text-xs">Indisponível</span>}
-                            {passed && !taken && <span className="text-muted-foreground text-xs">Passado</span>}
-                          </span>
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-                <Input type="time" value={customStartTime} onChange={(e) => handleCustomStartTimeChange(e.target.value)} min="07:30" max="17:00" className="w-24" placeholder="HH:MM" />
-              </div>
+              <Select value={startTime} onValueChange={(v) => { setStartTime(v); setCustomStartTime(''); }}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Início" /></SelectTrigger>
+                <SelectContent>
+                  {TIME_SLOTS.map(t => {
+                    const taken = location && FIXED_LOCATIONS.includes(location) ? isTimeSlotTaken(t, location) : false;
+                    const passed = isTimePassed(t, date);
+                    return (
+                      <SelectItem key={t} value={t} disabled={taken || passed}>
+                        <span className="flex items-center gap-2">
+                          {t}
+                          {taken && <span className="text-destructive text-xs">Indisponível</span>}
+                          {passed && !taken && <span className="text-muted-foreground text-xs">Passado</span>}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
               <Label>Horário Término</Label>
-              <div className="flex gap-2">
-                <Select value={endTime} onValueChange={(v) => { setEndTime(v); setCustomEndTime(''); }}>
-                  <SelectTrigger className="flex-1"><SelectValue placeholder="Término" /></SelectTrigger>
-                  <SelectContent>
-                    {TIME_SLOTS.map(t => {
-                      const effectiveStart = getEffectiveTime(startTime, customStartTime);
-                      const taken = location && FIXED_LOCATIONS.includes(location) ? isTimeSlotTaken(t, location) : false;
-                      return (
-                        <SelectItem key={t} value={t} disabled={taken || (!!effectiveStart && t <= effectiveStart)}>
-                          <span className="flex items-center gap-2">
-                            {t}
-                            {taken && <span className="text-destructive text-xs">Indisponível</span>}
-                          </span>
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-                <Input type="time" value={customEndTime} onChange={(e) => handleCustomEndTimeChange(e.target.value)} min="07:30" max="17:00" className="w-24" placeholder="HH:MM" />
-              </div>
+              <Select value={endTime} onValueChange={(v) => { setEndTime(v); setCustomEndTime(''); }}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Término" /></SelectTrigger>
+                <SelectContent>
+                  {TIME_SLOTS.map(t => {
+                    const effectiveStart = getEffectiveTime(startTime, customStartTime);
+                    const taken = location && FIXED_LOCATIONS.includes(location) ? isTimeSlotTaken(t, location) : false;
+                    return (
+                      <SelectItem key={t} value={t} disabled={taken || (!!effectiveStart && t <= effectiveStart)}>
+                        <span className="flex items-center gap-2">
+                          {t}
+                          {taken && <span className="text-destructive text-xs">Indisponível</span>}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
