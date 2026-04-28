@@ -18,6 +18,8 @@ const IArpeAssistant: React.FC = () => {
   const [animState, setAnimState] = useState<AnimState>('idle');
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
 
   useEffect(() => {
     if (open && messages.length === 0) {
@@ -28,11 +30,43 @@ const IArpeAssistant: React.FC = () => {
     }
   }, [open, messages.length]);
 
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  const getViewport = () => {
+    const root = scrollRef.current as any;
+    if (!root) return null;
+    return root.querySelector?.('[data-radix-scroll-area-viewport]') as HTMLDivElement | null;
+  };
+
+  const scrollToBottom = useCallback(() => {
+    const v = getViewport();
+    if (v) {
+      v.scrollTop = v.scrollHeight;
+      setHasNewMessages(false);
+      setAutoScroll(true);
     }
-  }, [messages]);
+  }, []);
+
+  useEffect(() => {
+    const v = getViewport();
+    if (!v) return;
+    const onScroll = () => {
+      const nearBottom = v.scrollHeight - v.scrollTop - v.clientHeight < 40;
+      setAutoScroll(nearBottom);
+      if (nearBottom) setHasNewMessages(false);
+    };
+    v.addEventListener('scroll', onScroll);
+    return () => v.removeEventListener('scroll', onScroll);
+  }, [open]);
+
+  useEffect(() => {
+    if (autoScroll) {
+      const v = getViewport();
+      if (v) v.scrollTop = v.scrollHeight;
+    } else {
+      if (messages[messages.length - 1]?.role === 'assistant') {
+        setHasNewMessages(true);
+      }
+    }
+  }, [messages, autoScroll]);
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
