@@ -288,36 +288,50 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
 
           <div className="border-t border-border pt-4">
             <p className="text-sm font-medium text-foreground mb-3">Chat</p>
-            <ScrollArea className="h-48 pr-4">
-              <div className="space-y-3">
-                {ticketMessages.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    Nenhuma mensagem ainda
-                  </p>
-                ) : (
-                  ticketMessages.map((msg) => {
-                    const msgUser = getUserById(msg.user_id);
-                    const isCurrentUser = msg.user_id === currentUser?.id;
-                    return (
-                      <div
-                        key={msg.id}
-                        className={cn(
-                          'p-3 rounded-lg max-w-[80%]',
-                          isCurrentUser
-                            ? 'bg-primary/10 ml-auto'
-                            : 'bg-secondary/50'
-                        )}
-                      >
-                        <p className="text-xs text-muted-foreground mb-1">
-                          {msgUser?.name || 'Usuário'} • {format(new Date(msg.created_at), 'HH:mm')}
-                        </p>
-                        <p className="text-sm text-foreground">{msg.content}</p>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </ScrollArea>
+            <div className="relative">
+              <ScrollArea ref={scrollRef} className="h-48 pr-4">
+                <div className="space-y-3">
+                  {ticketMessages.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Nenhuma mensagem ainda
+                    </p>
+                  ) : (
+                    ticketMessages.map((msg) => {
+                      const msgUser = getUserById(msg.user_id);
+                      const isCurrentUser = msg.user_id === currentUser?.id;
+                      return (
+                        <div
+                          key={msg.id}
+                          className={cn(
+                            'p-3 rounded-lg max-w-[80%]',
+                            isCurrentUser
+                              ? 'bg-primary/10 ml-auto'
+                              : 'bg-secondary/50'
+                          )}
+                        >
+                          <p className="text-xs text-muted-foreground mb-1">
+                            {msgUser?.name || 'Usuário'} • {format(new Date(msg.created_at), 'HH:mm')}
+                          </p>
+                          <p className="text-sm text-foreground">{msg.content}</p>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </ScrollArea>
+              {hasNewMessages && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="glow"
+                  onClick={scrollToBottom}
+                  className="absolute bottom-2 left-1/2 -translate-x-1/2 h-7 px-3 text-xs shadow-lg animate-in fade-in slide-in-from-bottom-2"
+                >
+                  <ArrowDown className="w-3 h-3 mr-1" />
+                  Novas mensagens
+                </Button>
+              )}
+            </div>
 
             <div className="flex gap-2 mt-3">
               <Textarea
