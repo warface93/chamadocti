@@ -46,6 +46,9 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
   const [isSending, setIsSending] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<TicketStatus>(ticket.status);
   const [isSavingStatus, setIsSavingStatus] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
 
   const hasStatusChanged = selectedStatus !== ticket.status;
 
@@ -58,6 +61,43 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
   }, [ticket.status]);
 
   const ticketMessages = messages.filter(m => m.ticket_id === ticket.id);
+
+  const getViewport = () =>
+    (scrollRef.current as any)?.querySelector?.('[data-radix-scroll-area-viewport]') as HTMLDivElement | null;
+
+  const scrollToBottom = useCallback(() => {
+    const v = getViewport();
+    if (v) {
+      v.scrollTo({ top: v.scrollHeight, behavior: 'smooth' });
+      setHasNewMessages(false);
+      setAutoScroll(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    const v = getViewport();
+    if (!v) return;
+    const onScroll = () => {
+      const nearBottom = v.scrollHeight - v.scrollTop - v.clientHeight < 40;
+      setAutoScroll(nearBottom);
+      if (nearBottom) setHasNewMessages(false);
+    };
+    v.addEventListener('scroll', onScroll);
+    return () => v.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    const v = getViewport();
+    if (!v) return;
+    if (autoScroll) {
+      v.scrollTo({ top: v.scrollHeight, behavior: 'smooth' });
+    } else {
+      const last = ticketMessages[ticketMessages.length - 1];
+      if (last && last.user_id !== currentUser?.id) {
+        setHasNewMessages(true);
+      }
+    }
+  }, [ticketMessages.length, autoScroll]);
 
   const handleSaveStatus = async () => {
     if (!hasStatusChanged || !currentUser) return;
