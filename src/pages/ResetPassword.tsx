@@ -69,7 +69,11 @@ const ResetPassword = () => {
       navigate("/login", { replace: true });
     } catch (err: any) {
       console.error("Reset password error:", err);
-      toast.error(err?.message || "Não foi possível atualizar a senha");
+      const rawMsg = err?.message || '';
+      const translated = rawMsg.includes('different from the old password')
+        ? 'A nova senha deve ser diferente da senha atual'
+        : (rawMsg || 'Não foi possível atualizar a senha');
+      toast.error(translated);
     } finally {
       setSaving(false);
     }

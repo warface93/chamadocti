@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Ticket, User, TicketStatus } from '@/types';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Star, Save, Paperclip, UserCheck } from 'lucide-react';
+import { Send, Star, Save, Paperclip, UserCheck, ArrowDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -46,6 +46,9 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
   const [isSending, setIsSending] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<TicketStatus>(ticket.status);
   const [isSavingStatus, setIsSavingStatus] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
 
   const hasStatusChanged = selectedStatus !== ticket.status;
 
@@ -58,6 +61,43 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
   }, [ticket.status]);
 
   const ticketMessages = messages.filter(m => m.ticket_id === ticket.id);
+
+  const getViewport = () =>
+    (scrollRef.current as any)?.querySelector?.('[data-radix-scroll-area-viewport]') as HTMLDivElement | null;
+
+  const scrollToBottom = useCallback(() => {
+    const v = getViewport();
+    if (v) {
+      v.scrollTo({ top: v.scrollHeight, behavior: 'smooth' });
+      setHasNewMessages(false);
+      setAutoScroll(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    const v = getViewport();
+    if (!v) return;
+    const onScroll = () => {
+      const nearBottom = v.scrollHeight - v.scrollTop - v.clientHeight < 40;
+      setAutoScroll(nearBottom);
+      if (nearBottom) setHasNewMessages(false);
+    };
+    v.addEventListener('scroll', onScroll);
+    return () => v.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    const v = getViewport();
+    if (!v) return;
+    if (autoScroll) {
+      v.scrollTo({ top: v.scrollHeight, behavior: 'smooth' });
+    } else {
+      const last = ticketMessages[ticketMessages.length - 1];
+      if (last && last.user_id !== currentUser?.id) {
+        setHasNewMessages(true);
+      }
+    }
+  }, [ticketMessages.length, autoScroll]);
 
   const handleSaveStatus = async () => {
     if (!hasStatusChanged || !currentUser) return;
@@ -248,36 +288,50 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
 
           <div className="border-t border-border pt-4">
             <p className="text-sm font-medium text-foreground mb-3">Chat</p>
-            <ScrollArea className="h-48 pr-4">
-              <div className="space-y-3">
-                {ticketMessages.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    Nenhuma mensagem ainda
-                  </p>
-                ) : (
-                  ticketMessages.map((msg) => {
-                    const msgUser = getUserById(msg.user_id);
-                    const isCurrentUser = msg.user_id === currentUser?.id;
-                    return (
-                      <div
-                        key={msg.id}
-                        className={cn(
-                          'p-3 rounded-lg max-w-[80%]',
-                          isCurrentUser
-                            ? 'bg-primary/10 ml-auto'
-                            : 'bg-secondary/50'
-                        )}
-                      >
-                        <p className="text-xs text-muted-foreground mb-1">
-                          {msgUser?.name || 'Usuário'} • {format(new Date(msg.created_at), 'HH:mm')}
-                        </p>
-                        <p className="text-sm text-foreground">{msg.content}</p>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </ScrollArea>
+            <div className="relative">
+              <ScrollArea ref={scrollRef} className="h-48 pr-4">
+                <div className="space-y-3">
+                  {ticketMessages.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Nenhuma mensagem ainda
+                    </p>
+                  ) : (
+                    ticketMessages.map((msg) => {
+                      const msgUser = getUserById(msg.user_id);
+                      const isCurrentUser = msg.user_id === currentUser?.id;
+                      return (
+                        <div
+                          key={msg.id}
+                          className={cn(
+                            'p-3 rounded-lg max-w-[80%]',
+                            isCurrentUser
+                              ? 'bg-primary/10 ml-auto'
+                              : 'bg-secondary/50'
+                          )}
+                        >
+                          <p className="text-xs text-muted-foreground mb-1">
+                            {msgUser?.name || 'Usuário'} • {format(new Date(msg.created_at), 'HH:mm')}
+                          </p>
+                          <p className="text-sm text-foreground">{msg.content}</p>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </ScrollArea>
+              {hasNewMessages && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="glow"
+                  onClick={scrollToBottom}
+                  className="absolute bottom-2 left-1/2 -translate-x-1/2 h-7 px-3 text-xs shadow-lg animate-in fade-in slide-in-from-bottom-2"
+                >
+                  <ArrowDown className="w-3 h-3 mr-1" />
+                  Novas mensagens
+                </Button>
+              )}
+            </div>
 
             <div className="flex gap-2 mt-3">
               <Textarea

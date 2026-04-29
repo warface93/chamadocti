@@ -116,11 +116,20 @@ const ReuniaoAdmin = () => {
   useEffect(() => {
     fetchMeetings();
     fetchInventory();
-    const channel = supabase
+    const meetingsChannel = supabase
       .channel('meetings-admin-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'meetings' }, () => { fetchMeetings(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'meeting_equipment' }, () => { fetchMeetings(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'meeting_admin_items' }, () => { fetchMeetings(); })
       .subscribe();
-    return () => { channel.unsubscribe(); };
+    const inventoryChannel = supabase
+      .channel('equipment-inventory-admin-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment_inventory' }, () => { fetchInventory(); })
+      .subscribe();
+    return () => {
+      meetingsChannel.unsubscribe();
+      inventoryChannel.unsubscribe();
+    };
   }, []);
 
   const fetchInventory = async () => {
