@@ -767,7 +767,8 @@ const ReuniaoUsuario = () => {
                       <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-white" /> {m.start_time} - {m.end_time}</span>
                       <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {m.location}</span>
                     </div>
-                    {m.user_name && <p className="text-xs text-muted-foreground">Solicitante: {m.user_name}</p>}
+                    {m.user_name && <p className="text-xs text-muted-foreground flex items-center gap-1"><User className="w-3 h-3" /> Solicitante: <span className="text-foreground font-medium">{m.user_name}</span></p>}
+                    {m.ramal && <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone className="w-3 h-3" /> Ramal: <span className="text-foreground font-medium">{m.ramal}</span></p>}
                     <div className="flex flex-wrap gap-1">
                       {m.equipment.map(eq => <Badge key={eq} variant="outline" className="text-xs">{getEquipmentLabel(eq)}</Badge>)}
                     </div>
