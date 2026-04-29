@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { CalendarIcon, Send, Clock, MapPin, Monitor, Edit, CheckCircle, AlertTriangle, Phone, History, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { CalendarIcon, Send, Clock, MapPin, Monitor, Edit, CheckCircle, AlertTriangle, Phone, History, ChevronLeft, ChevronRight, Search, User } from 'lucide-react';
 import { format, isAfter, parse, isToday, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
