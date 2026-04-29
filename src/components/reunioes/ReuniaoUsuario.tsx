@@ -160,11 +160,11 @@ const ReuniaoUsuario = () => {
     if (meetings) {
       // Filter out "Outro Local" from active meetings display
       const fixedMeetings = meetings.filter(m => FIXED_LOCATIONS.includes(m.location));
-      const [profilesRes, eqRes] = await Promise.all([
-        supabase.from('profiles').select('id, name'),
+      const [namesRes, eqRes] = await Promise.all([
+        supabase.rpc('get_meeting_user_names'),
         supabase.from('meeting_equipment').select('meeting_id, equipment'),
       ]);
-      const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p.name]));
+      const profileMap = new Map((namesRes.data || []).map((p: any) => [p.user_id, p.name]));
       const eqMap = new Map<string, string[]>();
       (eqRes.data || []).forEach(e => {
         const arr = eqMap.get(e.meeting_id) || [];
