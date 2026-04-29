@@ -42,7 +42,11 @@ const ForcePasswordChange = ({ open, onSuccess }: ForcePasswordChangeProps) => {
       toast.success('Senha alterada com sucesso!');
       onSuccess();
     } catch (error: any) {
-      toast.error('Erro ao alterar senha: ' + error.message);
+      const rawMsg = error?.message || '';
+      const translated = rawMsg.includes('different from the old password')
+        ? 'A nova senha deve ser diferente da senha atual'
+        : rawMsg;
+      toast.error('Erro ao alterar senha: ' + translated);
     } finally {
       setIsLoading(false);
     }

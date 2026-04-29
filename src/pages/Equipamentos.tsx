@@ -37,6 +37,13 @@ const Equipamentos = () => {
 
   useEffect(() => {
     fetchEquipment();
+    const channel = supabase
+      .channel('equipment-inventory-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment_inventory' }, () => {
+        fetchEquipment();
+      })
+      .subscribe();
+    return () => { channel.unsubscribe(); };
   }, []);
 
   const fetchEquipment = async () => {
