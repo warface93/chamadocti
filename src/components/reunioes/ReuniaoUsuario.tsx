@@ -419,6 +419,11 @@ const ReuniaoUsuario = () => {
       return;
     }
 
+    if (isTimePassed(editStartTime, editDate) || isTimePassed(editEndTime, editDate)) {
+      toast({ title: 'Não é possível selecionar um horário que já passou.', variant: 'destructive' });
+      return;
+    }
+
     if (FIXED_LOCATIONS.includes(editLocation)) {
       const dateStr = format(editDate, 'yyyy-MM-dd');
       const { data: otherMeetings } = await supabase
