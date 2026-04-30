@@ -806,11 +806,39 @@ const ReuniaoUsuario = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Início</Label>
-                <Input type="time" value={editStartTime} onChange={(e) => setEditStartTime(e.target.value)} min="07:30" max="17:00" />
+                <Select value={editStartTime} onValueChange={setEditStartTime}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {TIME_SLOTS.map(t => {
+                      const passed = isTimePassed(t, editDate);
+                      const taken = isTimeSlotTaken(t, editLocation, editingMeeting?.id);
+                      const disabled = passed || taken;
+                      return (
+                        <SelectItem key={t} value={t} disabled={disabled}>
+                          <span className="flex items-center gap-2">{t}{passed && <span className="text-destructive text-xs">passado</span>}{!passed && taken && <span className="text-destructive text-xs">ocupado</span>}</span>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Término</Label>
-                <Input type="time" value={editEndTime} onChange={(e) => setEditEndTime(e.target.value)} min="07:30" max="17:00" />
+                <Select value={editEndTime} onValueChange={setEditEndTime}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {TIME_SLOTS.map(t => {
+                      const passed = isTimePassed(t, editDate);
+                      const beforeStart = editStartTime ? t <= editStartTime : false;
+                      const disabled = passed || beforeStart;
+                      return (
+                        <SelectItem key={t} value={t} disabled={disabled}>
+                          <span className="flex items-center gap-2">{t}{passed && <span className="text-destructive text-xs">passado</span>}</span>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="space-y-2">
