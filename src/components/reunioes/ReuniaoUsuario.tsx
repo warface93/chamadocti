@@ -122,6 +122,7 @@ const ReuniaoUsuario = () => {
   // Pagination
   const [myMeetingsPage, setMyMeetingsPage] = useState(1);
   const [historyPage, setHistoryPage] = useState(1);
+  const [historySearch, setHistorySearch] = useState('');
   const HISTORY_PER_PAGE = 6;
 
   // Edit state
