@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Sector, Ticket, Message, TicketCategory, TicketStatus } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 interface DataContextType {
@@ -27,6 +28,7 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, user: authUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -34,8 +36,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchAllData();
-    
+    if (!isAuthenticated || !authUser) {
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const loadWithRetry = async (attempt = 0) => {
+      setLoading(true);
+      const ok = await fetchAllData();
+      if (cancelled) return;
+      if (!ok && attempt < 3) {
+        retryTimer = setTimeout(() => loadWithRetry(attempt + 1), 1000 * (attempt + 1));
+      } else {
+        setLoading(false);
+      }
+    };
+
+    loadWithRetry();
+
     const ticketsChannel = supabase
       .channel('tickets-changes')
       .on(
@@ -71,12 +92,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .subscribe();
 
     return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
       ticketsChannel.unsubscribe();
       messagesChannel.unsubscribe();
     };
-  }, []);
+  }, [isAuthenticated, authUser?.id]);
 
-  const fetchAllData = async () => {
+  const fetchAllData = async (): Promise<boolean> => {
     try {
       await Promise.all([
         fetchUsers(),
@@ -84,8 +107,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fetchTickets(),
         fetchMessages(),
       ]);
-    } finally {
-      setLoading(false);
+      return true;
+    } catch (e) {
+      console.error('fetchAllData error', e);
+      return false;
     }
   };
 
