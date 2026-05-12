@@ -101,13 +101,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchAllData = async (): Promise<boolean> => {
     try {
-      const results = await Promise.all([
+      await Promise.all([
         fetchUsers(),
         fetchSectors(),
         fetchTickets(),
         fetchMessages(),
       ]);
-      return results.every(r => r !== false);
+      return true;
     } catch (e) {
       console.error('fetchAllData error', e);
       return false;
