@@ -34,6 +34,8 @@ const Equipamentos = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [formData, setFormData] = useState({ type: '', brand: '', tombamento: '' });
+  const [loanDetails, setLoanDetails] = useState<{ equipment: Equipment; meeting: any; userName: string } | null>(null);
+  const [loanLoading, setLoanLoading] = useState(false);
 
   useEffect(() => {
     fetchEquipment();
@@ -107,6 +109,28 @@ const Equipamentos = () => {
     fetchEquipment();
   };
 
+  const handleViewLoan = async (item: Equipment) => {
+    if (item.status !== 'em_emprestimo' || !item.current_meeting_id) return;
+    setLoanLoading(true);
+    setLoanDetails({ equipment: item, meeting: null, userName: '' });
+    const { data: meeting } = await supabase
+      .from('meetings')
+      .select('*')
+      .eq('id', item.current_meeting_id)
+      .maybeSingle();
+    let userName = '—';
+    if (meeting?.user_id) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', meeting.user_id)
+        .maybeSingle();
+      userName = profile?.name || '—';
+    }
+    setLoanDetails({ equipment: item, meeting, userName });
+    setLoanLoading(false);
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -177,34 +201,41 @@ const Equipamentos = () => {
         {paginated.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">Nenhum equipamento encontrado</div>
         ) : (
-          paginated.map(item => (
-            <div key={item.id} className={cn(
-              "grid grid-cols-5 gap-4 p-4 border-b border-border/50 hover:bg-secondary/20 transition-colors items-center",
-              item.status === 'em_emprestimo' && 'opacity-60'
-            )}>
-              <span className="text-foreground font-medium flex items-center gap-2">
-                <Monitor className="w-4 h-4 text-primary" />
-                {item.type}
-              </span>
-              <span className="text-foreground">{item.brand}</span>
-              <span className="text-muted-foreground">{item.tombamento || '—'}</span>
-              <span>
-                <Badge variant={item.status === 'disponivel' ? 'default' : 'secondary'} className={cn(
-                  item.status === 'disponivel' ? 'bg-success text-success-foreground' : 'bg-warning text-warning-foreground'
-                )}>
-                  {item.status === 'disponivel' ? 'Disponível' : 'Em Empréstimo'}
-                </Badge>
-              </span>
-              <div className="flex justify-end gap-2">
-                <Button size="sm" variant="outline" onClick={() => handleEdit(item)}>
-                  <Edit className="w-3 h-3" />
-                </Button>
-                <Button size="sm" variant="destructive" onClick={() => handleDelete(item.id)} disabled={item.status === 'em_emprestimo'}>
-                  <Trash2 className="w-3 h-3" />
-                </Button>
+          paginated.map(item => {
+            const onLoan = item.status === 'em_emprestimo';
+            return (
+              <div
+                key={item.id}
+                onClick={() => onLoan && handleViewLoan(item)}
+                className={cn(
+                  "grid grid-cols-5 gap-4 p-4 border-b border-border/50 hover:bg-secondary/20 transition-colors items-center",
+                  onLoan && 'opacity-80 cursor-pointer'
+                )}
+              >
+                <span className="text-foreground font-medium flex items-center gap-2">
+                  <Monitor className="w-4 h-4 text-primary" />
+                  {item.type}
+                </span>
+                <span className="text-foreground">{item.brand}</span>
+                <span className="text-muted-foreground">{item.tombamento || '—'}</span>
+                <span>
+                  <Badge variant={item.status === 'disponivel' ? 'default' : 'secondary'} className={cn(
+                    item.status === 'disponivel' ? 'bg-success text-success-foreground' : 'bg-warning text-warning-foreground'
+                  )}>
+                    {item.status === 'disponivel' ? 'Disponível' : 'Em Empréstimo'}
+                  </Badge>
+                </span>
+                <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                  <Button size="sm" variant="outline" onClick={() => handleEdit(item)}>
+                    <Edit className="w-3 h-3" />
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => handleDelete(item.id)} disabled={item.status === 'em_emprestimo'}>
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -224,6 +255,38 @@ const Equipamentos = () => {
           <span className="text-sm text-muted-foreground ml-2">{filtered.length} equipamento(s)</span>
         </div>
       )}
+
+      <Dialog open={!!loanDetails} onOpenChange={(o) => !o && setLoanDetails(null)}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle>Equipamento em Empréstimo</DialogTitle>
+            <DialogDescription>Informações do uso atual deste equipamento.</DialogDescription>
+          </DialogHeader>
+          {loanLoading || !loanDetails?.meeting ? (
+            <div className="py-6 text-sm text-muted-foreground text-center">
+              {loanLoading ? 'Carregando...' : 'Sem informações de reunião disponíveis.'}
+            </div>
+          ) : (
+            <div className="space-y-3 py-2">
+              <div className="flex items-center gap-2">
+                <Monitor className="w-4 h-4 text-primary" />
+                <span className="text-foreground font-medium">{loanDetails.equipment.type} — {loanDetails.equipment.brand}</span>
+              </div>
+              {loanDetails.equipment.tombamento && (
+                <p className="text-xs text-muted-foreground">Tombamento: {loanDetails.equipment.tombamento}</p>
+              )}
+              <div className="border-t border-border pt-3 space-y-2 text-sm">
+                <p><span className="text-muted-foreground">Local:</span> <span className="text-foreground font-medium">{loanDetails.meeting.location}</span></p>
+                <p><span className="text-muted-foreground">Solicitante:</span> <span className="text-foreground font-medium">{loanDetails.userName}</span></p>
+                {loanDetails.meeting.theme && (
+                  <p><span className="text-muted-foreground">Tema:</span> <span className="text-foreground">{loanDetails.meeting.theme}</span></p>
+                )}
+                <p><span className="text-muted-foreground">Data:</span> <span className="text-foreground">{loanDetails.meeting.meeting_date} • {loanDetails.meeting.start_time} - {loanDetails.meeting.end_time}</span></p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

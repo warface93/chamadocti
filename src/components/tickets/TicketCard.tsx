@@ -1,9 +1,10 @@
 import { Ticket, User } from '@/types';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { Clock, AlertTriangle, UserCheck } from 'lucide-react';
+import { Clock, AlertTriangle, UserCheck, MessageCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useTicketUnreadCount } from '@/hooks/useTicketUnread';
 
 interface TicketCardProps {
   ticket: Ticket;
@@ -45,19 +46,27 @@ const TicketCard = ({ ticket, user, onClick, isNewest }: TicketCardProps) => {
   const isCritical = ticket.status === 'critical';
   const isResolved = ticket.status === 'resolved' && ticket.rating != null;
   const shouldGlow = isNewest !== undefined ? isNewest && ticket.is_new : ticket.is_new;
-  const statusChangedBy = (ticket as any).status_changed_by;
+  const assignedAdminName = ticket.assigned_admin_name || (ticket as any).status_changed_by;
+  const unreadCount = useTicketUnreadCount(ticket.id);
 
   return (
     <div
       onClick={onClick}
       className={cn(
-        'bg-card rounded-xl p-5 border cursor-pointer transition-all duration-300',
+        'relative bg-card rounded-xl p-5 border cursor-pointer transition-all duration-300',
         shouldGlow && 'new-ticket-glow',
         isCritical ? 'glow-border-critical hover:bg-critical/5' : 'glow-border hover:bg-primary/5',
         'card-hover-effect',
         isResolved && 'opacity-40'
       )}
     >
+      {unreadCount > 0 && (
+        <div className="absolute -top-2 -right-2 z-10 flex items-center gap-1 px-2 py-1 rounded-full bg-critical text-critical-foreground shadow-lg animate-pulse">
+          <MessageCircle className="w-3 h-3" />
+          <span className="text-xs font-bold leading-none">{unreadCount}</span>
+        </div>
+      )}
+
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
@@ -84,11 +93,10 @@ const TicketCard = ({ ticket, user, onClick, isNewest }: TicketCardProps) => {
         </Badge>
       </div>
 
-      {/* Status changed by audit */}
-      {statusChangedBy && (
+      {assignedAdminName && (
         <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
           <UserCheck className="w-3 h-3 text-primary" />
-          <span>Atendido por: <span className="text-foreground font-medium">{statusChangedBy}</span></span>
+          <span>Responsável por: <span className="text-foreground font-medium">{assignedAdminName}</span></span>
         </div>
       )}
 

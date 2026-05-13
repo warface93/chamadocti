@@ -9,15 +9,15 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FileText, FolderOpen, Clock, CheckCircle, AlertTriangle, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, FolderOpen, Clock, CheckCircle, AlertTriangle, Search, ChevronLeft, ChevronRight, Hourglass } from 'lucide-react';
 import { Ticket } from '@/types';
 
 const ITEMS_PER_PAGE = 15;
 
 const DashboardSkeleton = () => (
   <div className="space-y-6">
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-      {Array.from({ length: 5 }).map((_, i) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+      {Array.from({ length: 6 }).map((_, i) => (
         <Skeleton key={i} className="h-24 rounded-xl" />
       ))}
     </div>
@@ -73,6 +73,7 @@ const Dashboard = () => {
 
   const totalTickets = tickets.length;
   const openTickets = tickets.filter(t => t.status === 'open').length;
+  const pendingTickets = tickets.filter(t => t.status === 'pending').length;
   const inProgressTickets = tickets.filter(t => t.status === 'in_progress').length;
   const resolvedTickets = tickets.filter(t => t.status === 'resolved').length;
   const criticalTickets = tickets.filter(t => t.status === 'critical').length;
@@ -97,12 +98,15 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
         <div className="cursor-pointer" onClick={() => handleStatusFilterChange('all')}>
           <StatusCard title="Total" value={totalTickets} icon={FileText} variant="total" />
         </div>
         <div className="cursor-pointer" onClick={() => handleStatusFilterChange('open')}>
           <StatusCard title="Abertos" value={openTickets} icon={FolderOpen} variant="open" />
+        </div>
+        <div className="cursor-pointer" onClick={() => handleStatusFilterChange('pending')}>
+          <StatusCard title="Pendentes" value={pendingTickets} icon={Hourglass} variant="pending" />
         </div>
         <div className="cursor-pointer" onClick={() => handleStatusFilterChange('in_progress')}>
           <StatusCard title="Em Andamento" value={inProgressTickets} icon={Clock} variant="in_progress" />
