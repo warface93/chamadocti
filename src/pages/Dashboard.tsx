@@ -98,12 +98,15 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
         <div className="cursor-pointer" onClick={() => handleStatusFilterChange('all')}>
           <StatusCard title="Total" value={totalTickets} icon={FileText} variant="total" />
         </div>
         <div className="cursor-pointer" onClick={() => handleStatusFilterChange('open')}>
           <StatusCard title="Abertos" value={openTickets} icon={FolderOpen} variant="open" />
+        </div>
+        <div className="cursor-pointer" onClick={() => handleStatusFilterChange('pending')}>
+          <StatusCard title="Pendentes" value={pendingTickets} icon={Hourglass} variant="pending" />
         </div>
         <div className="cursor-pointer" onClick={() => handleStatusFilterChange('in_progress')}>
           <StatusCard title="Em Andamento" value={inProgressTickets} icon={Clock} variant="in_progress" />
