@@ -71,9 +71,10 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
   }, [ticket.id]);
 
   // Mark seen whenever new messages arrive while modal is open
+  const ticketMessagesLen = messages.filter(m => m.ticket_id === ticket.id).length;
   useEffect(() => {
     if (currentUser) markTicketSeen(ticket.id, currentUser.id);
-  });
+  }, [ticketMessagesLen, currentUser?.id, ticket.id]);
 
   useEffect(() => {
     setSelectedStatus(ticket.status);
