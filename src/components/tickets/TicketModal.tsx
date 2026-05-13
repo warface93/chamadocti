@@ -53,9 +53,27 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
 
   const hasStatusChanged = selectedStatus !== ticket.status;
 
+  // Auto-assign admin on first interaction (open) and mark messages as seen
   useEffect(() => {
     refetchMessages(ticket.id);
+    if (currentUser) markTicketSeen(ticket.id, currentUser.id);
+    if (isAdmin && currentUser && !ticket.assigned_admin_id) {
+      supabase
+        .from('tickets')
+        .update({
+          assigned_admin_id: currentUser.id,
+          assigned_admin_name: currentUser.name,
+        })
+        .eq('id', ticket.id)
+        .is('assigned_admin_id', null)
+        .then(() => {});
+    }
   }, [ticket.id]);
+
+  // Mark seen whenever new messages arrive while modal is open
+  useEffect(() => {
+    if (currentUser) markTicketSeen(ticket.id, currentUser.id);
+  });
 
   useEffect(() => {
     setSelectedStatus(ticket.status);
