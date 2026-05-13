@@ -14,6 +14,7 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { markTicketSeen } from '@/hooks/useTicketUnread';
 
 interface TicketModalProps {
   ticket: Ticket;
