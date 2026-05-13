@@ -23,8 +23,20 @@ export const markTicketSeen = (ticketId: string, userId: string) => {
 export const useTicketUnreadCount = (ticketId: string): number => {
   const { messages } = useData();
   const { user } = useAuth();
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (!detail || detail.ticketId === ticketId) setTick((t) => t + 1);
+    };
+    window.addEventListener('ticket-seen', handler);
+    return () => window.removeEventListener('ticket-seen', handler);
+  }, [ticketId]);
+
   if (!user) return 0;
   const lastSeen = getLastSeen(ticketId, user.id);
+  void tick;
   return messages.filter(
     (m) =>
       m.ticket_id === ticketId &&
