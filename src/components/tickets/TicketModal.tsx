@@ -238,14 +238,14 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
             </span>
           </div>
 
-          {/* Status change audit */}
-          {statusChangedBy && (
+          {/* Responsável pelo atendimento */}
+          {(ticket.assigned_admin_name || statusChangedBy) && (
             <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/5 border border-primary/20">
               <UserCheck className="w-4 h-4 text-primary" />
               <span className="text-xs text-muted-foreground">
-                Atendido por: <span className="text-foreground font-medium">{statusChangedBy}</span>
-                {statusChangedAt && (
-                  <> em {format(new Date(statusChangedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</>
+                Responsável por: <span className="text-foreground font-medium">{ticket.assigned_admin_name || statusChangedBy}</span>
+                {statusChangedAt && statusChangedBy && (
+                  <> • Última alteração em {format(new Date(statusChangedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</>
                 )}
               </span>
             </div>
