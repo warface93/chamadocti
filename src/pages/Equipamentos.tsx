@@ -201,34 +201,41 @@ const Equipamentos = () => {
         {paginated.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">Nenhum equipamento encontrado</div>
         ) : (
-          paginated.map(item => (
-            <div key={item.id} className={cn(
-              "grid grid-cols-5 gap-4 p-4 border-b border-border/50 hover:bg-secondary/20 transition-colors items-center",
-              item.status === 'em_emprestimo' && 'opacity-60'
-            )}>
-              <span className="text-foreground font-medium flex items-center gap-2">
-                <Monitor className="w-4 h-4 text-primary" />
-                {item.type}
-              </span>
-              <span className="text-foreground">{item.brand}</span>
-              <span className="text-muted-foreground">{item.tombamento || '—'}</span>
-              <span>
-                <Badge variant={item.status === 'disponivel' ? 'default' : 'secondary'} className={cn(
-                  item.status === 'disponivel' ? 'bg-success text-success-foreground' : 'bg-warning text-warning-foreground'
-                )}>
-                  {item.status === 'disponivel' ? 'Disponível' : 'Em Empréstimo'}
-                </Badge>
-              </span>
-              <div className="flex justify-end gap-2">
-                <Button size="sm" variant="outline" onClick={() => handleEdit(item)}>
-                  <Edit className="w-3 h-3" />
-                </Button>
-                <Button size="sm" variant="destructive" onClick={() => handleDelete(item.id)} disabled={item.status === 'em_emprestimo'}>
-                  <Trash2 className="w-3 h-3" />
-                </Button>
+          paginated.map(item => {
+            const onLoan = item.status === 'em_emprestimo';
+            return (
+              <div
+                key={item.id}
+                onClick={() => onLoan && handleViewLoan(item)}
+                className={cn(
+                  "grid grid-cols-5 gap-4 p-4 border-b border-border/50 hover:bg-secondary/20 transition-colors items-center",
+                  onLoan && 'opacity-80 cursor-pointer'
+                )}
+              >
+                <span className="text-foreground font-medium flex items-center gap-2">
+                  <Monitor className="w-4 h-4 text-primary" />
+                  {item.type}
+                </span>
+                <span className="text-foreground">{item.brand}</span>
+                <span className="text-muted-foreground">{item.tombamento || '—'}</span>
+                <span>
+                  <Badge variant={item.status === 'disponivel' ? 'default' : 'secondary'} className={cn(
+                    item.status === 'disponivel' ? 'bg-success text-success-foreground' : 'bg-warning text-warning-foreground'
+                  )}>
+                    {item.status === 'disponivel' ? 'Disponível' : 'Em Empréstimo'}
+                  </Badge>
+                </span>
+                <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                  <Button size="sm" variant="outline" onClick={() => handleEdit(item)}>
+                    <Edit className="w-3 h-3" />
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => handleDelete(item.id)} disabled={item.status === 'em_emprestimo'}>
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
