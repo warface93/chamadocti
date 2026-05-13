@@ -14,6 +14,7 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { markTicketSeen } from '@/hooks/useTicketUnread';
 
 interface TicketModalProps {
   ticket: Ticket;
@@ -52,9 +53,28 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
 
   const hasStatusChanged = selectedStatus !== ticket.status;
 
+  // Auto-assign admin on first interaction (open) and mark messages as seen
   useEffect(() => {
     refetchMessages(ticket.id);
+    if (currentUser) markTicketSeen(ticket.id, currentUser.id);
+    if (isAdmin && currentUser && !ticket.assigned_admin_id) {
+      supabase
+        .from('tickets')
+        .update({
+          assigned_admin_id: currentUser.id,
+          assigned_admin_name: currentUser.name,
+        })
+        .eq('id', ticket.id)
+        .is('assigned_admin_id', null)
+        .then(() => {});
+    }
   }, [ticket.id]);
+
+  // Mark seen whenever new messages arrive while modal is open
+  const ticketMessagesLen = messages.filter(m => m.ticket_id === ticket.id).length;
+  useEffect(() => {
+    if (currentUser) markTicketSeen(ticket.id, currentUser.id);
+  }, [ticketMessagesLen, currentUser?.id, ticket.id]);
 
   useEffect(() => {
     setSelectedStatus(ticket.status);
@@ -103,15 +123,19 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
     if (!hasStatusChanged || !currentUser) return;
     setIsSavingStatus(true);
     try {
-      // Update status and record who changed it
+      const updateData: any = {
+        status: selectedStatus,
+        updated_at: new Date().toISOString(),
+        status_changed_by: currentUser.name,
+        status_changed_at: new Date().toISOString(),
+      };
+      if (isAdmin && !ticket.assigned_admin_id) {
+        updateData.assigned_admin_id = currentUser.id;
+        updateData.assigned_admin_name = currentUser.name;
+      }
       const { error } = await supabase
         .from('tickets')
-        .update({
-          status: selectedStatus,
-          updated_at: new Date().toISOString(),
-          status_changed_by: currentUser.name,
-          status_changed_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', ticket.id);
 
       if (error) throw error;
@@ -133,6 +157,17 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
         user_id: currentUser.id,
         content: newMessage.trim(),
       });
+      // Auto-assign admin if missing
+      if (isAdmin && !ticket.assigned_admin_id) {
+        await supabase
+          .from('tickets')
+          .update({
+            assigned_admin_id: currentUser.id,
+            assigned_admin_name: currentUser.name,
+          })
+          .eq('id', ticket.id)
+          .is('assigned_admin_id', null);
+      }
       setNewMessage('');
       toast.success('Mensagem enviada!');
     } catch (error) {
@@ -204,14 +239,14 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
             </span>
           </div>
 
-          {/* Status change audit */}
-          {statusChangedBy && (
+          {/* Responsável pelo atendimento */}
+          {(ticket.assigned_admin_name || statusChangedBy) && (
             <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/5 border border-primary/20">
               <UserCheck className="w-4 h-4 text-primary" />
               <span className="text-xs text-muted-foreground">
-                Atendido por: <span className="text-foreground font-medium">{statusChangedBy}</span>
-                {statusChangedAt && (
-                  <> em {format(new Date(statusChangedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</>
+                Responsável por: <span className="text-foreground font-medium">{ticket.assigned_admin_name || statusChangedBy}</span>
+                {statusChangedAt && statusChangedBy && (
+                  <> • Última alteração em {format(new Date(statusChangedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</>
                 )}
               </span>
             </div>
@@ -299,6 +334,8 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
                     ticketMessages.map((msg) => {
                       const msgUser = getUserById(msg.user_id);
                       const isCurrentUser = msg.user_id === currentUser?.id;
+                      const isMsgAdmin = msgUser?.role === 'admin';
+                      const displayName = isMsgAdmin ? 'Suporte' : (msgUser?.name || 'Usuário');
                       return (
                         <div
                           key={msg.id}
@@ -310,7 +347,7 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
                           )}
                         >
                           <p className="text-xs text-muted-foreground mb-1">
-                            {msgUser?.name || 'Usuário'} • {format(new Date(msg.created_at), 'HH:mm')}
+                            {displayName} • {format(new Date(msg.created_at), 'HH:mm')}
                           </p>
                           <p className="text-sm text-foreground">{msg.content}</p>
                         </div>

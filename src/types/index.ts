@@ -34,6 +34,10 @@ export interface Ticket {
   attachment_url?: string;
   rating?: number;
   is_new?: boolean;
+  assigned_admin_id?: string | null;
+  assigned_admin_name?: string | null;
+  status_changed_by?: string | null;
+  status_changed_at?: string | null;
   created_at: string;
   updated_at: string;
 }
