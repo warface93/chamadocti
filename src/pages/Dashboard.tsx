@@ -73,6 +73,7 @@ const Dashboard = () => {
 
   const totalTickets = tickets.length;
   const openTickets = tickets.filter(t => t.status === 'open').length;
+  const pendingTickets = tickets.filter(t => t.status === 'pending').length;
   const inProgressTickets = tickets.filter(t => t.status === 'in_progress').length;
   const resolvedTickets = tickets.filter(t => t.status === 'resolved').length;
   const criticalTickets = tickets.filter(t => t.status === 'critical').length;
