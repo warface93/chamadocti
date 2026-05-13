@@ -109,6 +109,28 @@ const Equipamentos = () => {
     fetchEquipment();
   };
 
+  const handleViewLoan = async (item: Equipment) => {
+    if (item.status !== 'em_emprestimo' || !item.current_meeting_id) return;
+    setLoanLoading(true);
+    setLoanDetails({ equipment: item, meeting: null, userName: '' });
+    const { data: meeting } = await supabase
+      .from('meetings')
+      .select('*')
+      .eq('id', item.current_meeting_id)
+      .maybeSingle();
+    let userName = '—';
+    if (meeting?.user_id) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', meeting.user_id)
+        .maybeSingle();
+      userName = profile?.name || '—';
+    }
+    setLoanDetails({ equipment: item, meeting, userName });
+    setLoanLoading(false);
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
