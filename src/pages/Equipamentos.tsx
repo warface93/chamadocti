@@ -34,6 +34,8 @@ const Equipamentos = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [formData, setFormData] = useState({ type: '', brand: '', tombamento: '' });
+  const [loanDetails, setLoanDetails] = useState<{ equipment: Equipment; meeting: any; userName: string } | null>(null);
+  const [loanLoading, setLoanLoading] = useState(false);
 
   useEffect(() => {
     fetchEquipment();
