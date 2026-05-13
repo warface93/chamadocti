@@ -255,6 +255,38 @@ const Equipamentos = () => {
           <span className="text-sm text-muted-foreground ml-2">{filtered.length} equipamento(s)</span>
         </div>
       )}
+
+      <Dialog open={!!loanDetails} onOpenChange={(o) => !o && setLoanDetails(null)}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle>Equipamento em Empréstimo</DialogTitle>
+            <DialogDescription>Informações do uso atual deste equipamento.</DialogDescription>
+          </DialogHeader>
+          {loanLoading || !loanDetails?.meeting ? (
+            <div className="py-6 text-sm text-muted-foreground text-center">
+              {loanLoading ? 'Carregando...' : 'Sem informações de reunião disponíveis.'}
+            </div>
+          ) : (
+            <div className="space-y-3 py-2">
+              <div className="flex items-center gap-2">
+                <Monitor className="w-4 h-4 text-primary" />
+                <span className="text-foreground font-medium">{loanDetails.equipment.type} — {loanDetails.equipment.brand}</span>
+              </div>
+              {loanDetails.equipment.tombamento && (
+                <p className="text-xs text-muted-foreground">Tombamento: {loanDetails.equipment.tombamento}</p>
+              )}
+              <div className="border-t border-border pt-3 space-y-2 text-sm">
+                <p><span className="text-muted-foreground">Local:</span> <span className="text-foreground font-medium">{loanDetails.meeting.location}</span></p>
+                <p><span className="text-muted-foreground">Solicitante:</span> <span className="text-foreground font-medium">{loanDetails.userName}</span></p>
+                {loanDetails.meeting.theme && (
+                  <p><span className="text-muted-foreground">Tema:</span> <span className="text-foreground">{loanDetails.meeting.theme}</span></p>
+                )}
+                <p><span className="text-muted-foreground">Data:</span> <span className="text-foreground">{loanDetails.meeting.meeting_date} • {loanDetails.meeting.start_time} - {loanDetails.meeting.end_time}</span></p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
