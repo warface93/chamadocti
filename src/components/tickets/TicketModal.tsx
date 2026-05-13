@@ -122,15 +122,19 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
     if (!hasStatusChanged || !currentUser) return;
     setIsSavingStatus(true);
     try {
-      // Update status and record who changed it
+      const updateData: any = {
+        status: selectedStatus,
+        updated_at: new Date().toISOString(),
+        status_changed_by: currentUser.name,
+        status_changed_at: new Date().toISOString(),
+      };
+      if (isAdmin && !ticket.assigned_admin_id) {
+        updateData.assigned_admin_id = currentUser.id;
+        updateData.assigned_admin_name = currentUser.name;
+      }
       const { error } = await supabase
         .from('tickets')
-        .update({
-          status: selectedStatus,
-          updated_at: new Date().toISOString(),
-          status_changed_by: currentUser.name,
-          status_changed_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', ticket.id);
 
       if (error) throw error;
@@ -152,6 +156,17 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
         user_id: currentUser.id,
         content: newMessage.trim(),
       });
+      // Auto-assign admin if missing
+      if (isAdmin && !ticket.assigned_admin_id) {
+        await supabase
+          .from('tickets')
+          .update({
+            assigned_admin_id: currentUser.id,
+            assigned_admin_name: currentUser.name,
+          })
+          .eq('id', ticket.id)
+          .is('assigned_admin_id', null);
+      }
       setNewMessage('');
       toast.success('Mensagem enviada!');
     } catch (error) {
