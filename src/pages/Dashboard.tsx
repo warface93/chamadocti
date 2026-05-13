@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FileText, FolderOpen, Clock, CheckCircle, AlertTriangle, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, FolderOpen, Clock, CheckCircle, AlertTriangle, Search, ChevronLeft, ChevronRight, Hourglass } from 'lucide-react';
 import { Ticket } from '@/types';
 
 const ITEMS_PER_PAGE = 15;
