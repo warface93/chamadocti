@@ -5,7 +5,7 @@ interface StatusCardProps {
   title: string;
   value: number;
   icon: LucideIcon;
-  variant: 'total' | 'open' | 'in_progress' | 'resolved' | 'critical';
+  variant: 'total' | 'open' | 'in_progress' | 'resolved' | 'critical' | 'pending';
 }
 
 const variantStyles = {
@@ -14,6 +14,7 @@ const variantStyles = {
   in_progress: 'glow-card-warning border-warning/30',
   resolved: 'glow-card-success border-success/30',
   critical: 'glow-card-critical border-critical/30',
+  pending: 'glow-card border-muted-foreground/30',
 };
 
 const iconStyles = {
@@ -22,6 +23,7 @@ const iconStyles = {
   in_progress: 'text-warning bg-warning/10',
   resolved: 'text-success bg-success/10',
   critical: 'text-critical bg-critical/10',
+  pending: 'text-muted-foreground bg-muted/40',
 };
 
 const valueStyles = {
@@ -30,6 +32,7 @@ const valueStyles = {
   in_progress: 'text-warning',
   resolved: 'text-success',
   critical: 'text-critical',
+  pending: 'text-foreground',
 };
 
 const StatusCard = ({ title, value, icon: Icon, variant }: StatusCardProps) => {
