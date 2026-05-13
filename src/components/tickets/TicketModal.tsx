@@ -333,6 +333,8 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
                     ticketMessages.map((msg) => {
                       const msgUser = getUserById(msg.user_id);
                       const isCurrentUser = msg.user_id === currentUser?.id;
+                      const isMsgAdmin = msgUser?.role === 'admin';
+                      const displayName = isMsgAdmin ? 'Suporte' : (msgUser?.name || 'Usuário');
                       return (
                         <div
                           key={msg.id}
@@ -344,7 +346,7 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
                           )}
                         >
                           <p className="text-xs text-muted-foreground mb-1">
-                            {msgUser?.name || 'Usuário'} • {format(new Date(msg.created_at), 'HH:mm')}
+                            {displayName} • {format(new Date(msg.created_at), 'HH:mm')}
                           </p>
                           <p className="text-sm text-foreground">{msg.content}</p>
                         </div>
