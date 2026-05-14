@@ -31,7 +31,11 @@ export const useTicketUnreadCount = (ticketId: string): number => {
       if (!detail || detail.ticketId === ticketId) setTick((t) => t + 1);
     };
     window.addEventListener('ticket-seen', handler);
-    return () => window.removeEventListener('ticket-seen', handler);
+    window.addEventListener('new-ticket-message', handler);
+    return () => {
+      window.removeEventListener('ticket-seen', handler);
+      window.removeEventListener('new-ticket-message', handler);
+    };
   }, [ticketId]);
 
   if (!user) return 0;
