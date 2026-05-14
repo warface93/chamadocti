@@ -47,7 +47,9 @@ const TicketCard = ({ ticket, user, onClick, isNewest }: TicketCardProps) => {
   const isResolved = ticket.status === 'resolved' && ticket.rating != null;
   const shouldGlow = isNewest !== undefined ? isNewest && ticket.is_new : ticket.is_new;
   const assignedAdminName = ticket.assigned_admin_name || (ticket as any).status_changed_by;
-  const unreadCount = useTicketUnreadCount(ticket.id);
+  const rawUnread = useTicketUnreadCount(ticket.id);
+  const activeStatuses: typeof ticket.status[] = ['open', 'pending', 'in_progress', 'critical'];
+  const unreadCount = activeStatuses.includes(ticket.status) ? rawUnread : 0;
 
   return (
     <div
