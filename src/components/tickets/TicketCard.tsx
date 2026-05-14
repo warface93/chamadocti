@@ -63,7 +63,7 @@ const TicketCard = ({ ticket, user, onClick, isNewest }: TicketCardProps) => {
       )}
     >
       {unreadCount > 0 && (
-        <div className="absolute -top-2 -right-2 z-10 flex items-center gap-1 px-2 py-1 rounded-full bg-critical text-critical-foreground shadow-lg animate-pulse">
+        <div className="absolute -top-2 -right-2 z-10 flex items-center gap-1 px-2 py-1 rounded-full bg-critical text-critical-foreground shadow-lg animate-pulse ring-2 ring-critical/40">
           <MessageCircle className="w-3 h-3" />
           <span className="text-xs font-bold leading-none">{unreadCount}</span>
         </div>
