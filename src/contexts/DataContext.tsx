@@ -57,8 +57,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     loadWithRetry();
 
+    const channelSuffix = `${authUser.id}-${Math.random().toString(36).slice(2, 8)}`;
+
     const ticketsChannel = supabase
-      .channel('tickets-changes')
+      .channel(`tickets-changes-${channelSuffix}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'tickets' },
@@ -78,24 +80,36 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .subscribe();
 
     const messagesChannel = supabase
-      .channel('messages-changes')
+      .channel(`messages-changes-${channelSuffix}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'messages' },
+        { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const newMessage = payload.new as Message;
-            setMessages(prev => [...prev.filter(m => m.id !== newMessage.id), newMessage]);
-          }
+          const newMessage = payload.new as Message;
+          setMessages(prev => {
+            if (prev.some(m => m.id === newMessage.id)) return prev;
+            return [...prev, newMessage];
+          });
+          window.dispatchEvent(new CustomEvent('new-ticket-message', { detail: { ticketId: newMessage.ticket_id, userId: newMessage.user_id } }));
         }
       )
       .subscribe();
 
+    // Reconnect-safe: refetch when window regains focus or comes back online
+    const handleResync = () => {
+      fetchTickets();
+      fetchMessages();
+    };
+    window.addEventListener('focus', handleResync);
+    window.addEventListener('online', handleResync);
+
     return () => {
       cancelled = true;
       if (retryTimer) clearTimeout(retryTimer);
-      ticketsChannel.unsubscribe();
-      messagesChannel.unsubscribe();
+      window.removeEventListener('focus', handleResync);
+      window.removeEventListener('online', handleResync);
+      supabase.removeChannel(ticketsChannel);
+      supabase.removeChannel(messagesChannel);
     };
   }, [isAuthenticated, authUser?.id]);
 
