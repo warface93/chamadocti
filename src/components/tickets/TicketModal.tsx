@@ -241,14 +241,27 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
 
           {/* Responsável pelo atendimento */}
           {(ticket.assigned_admin_name || statusChangedBy) && (
-            <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/5 border border-primary/20">
-              <UserCheck className="w-4 h-4 text-primary" />
-              <span className="text-xs text-muted-foreground">
-                Responsável por: <span className="text-foreground font-medium">{ticket.assigned_admin_name || statusChangedBy}</span>
-                {statusChangedAt && statusChangedBy && (
-                  <> • Última alteração em {format(new Date(statusChangedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</>
+            <div className="flex flex-col gap-1 p-2 rounded-lg bg-primary/5 border border-primary/20">
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-4 h-4 text-primary" />
+                <span className="text-xs text-muted-foreground">
+                  Responsável por: <span className="text-foreground font-medium">{ticket.assigned_admin_name || statusChangedBy}</span>
+                </span>
+              </div>
+              <div className="text-xs text-muted-foreground pl-6 space-y-0.5">
+                <div>Aberto por: <span className="text-foreground">{user?.name}</span></div>
+                {ticket.assigned_admin_name && (
+                  <div>Atendido por: <span className="text-foreground">{ticket.assigned_admin_name}</span></div>
                 )}
-              </span>
+                {statusChangedBy && (
+                  <div>
+                    Status ({statusLabels[ticket.status]}) alterado por: <span className="text-foreground">{statusChangedBy}</span>
+                    {statusChangedAt && (
+                      <> em {format(new Date(statusChangedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
