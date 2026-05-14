@@ -334,11 +334,11 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
                     ticketMessages.map((msg) => {
                       const msgUser = getUserById(msg.user_id);
                       const isCurrentUser = msg.user_id === currentUser?.id;
-                      // Sender is "Suporte" if they are not the ticket owner (i.e. an admin replying)
                       const isFromOwner = msg.user_id === ticket.user_id;
+                      // Admin viewers see real names; regular users see "Suporte" for admin replies
                       const displayName = isFromOwner
                         ? (msgUser?.name || user?.name || 'Usuário')
-                        : 'Suporte';
+                        : (isAdmin ? (msgUser?.name || 'Suporte') : 'Suporte');
                       return (
                         <div
                           key={msg.id}
