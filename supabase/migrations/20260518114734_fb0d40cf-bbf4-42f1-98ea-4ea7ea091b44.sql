@@ -1,0 +1,1 @@
+ALTER TABLE public.tickets ADD COLUMN IF NOT EXISTS admin_last_read_at timestamptz;
