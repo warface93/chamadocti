@@ -165,16 +165,14 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
         user_id: currentUser.id,
         content: newMessage.trim(),
       });
-      // Auto-assign admin if missing
-      if (isAdmin && !ticket.assigned_admin_id) {
-        await supabase
-          .from('tickets')
-          .update({
-            assigned_admin_id: currentUser.id,
-            assigned_admin_name: currentUser.name,
-          })
-          .eq('id', ticket.id)
-          .is('assigned_admin_id', null);
+      // Always set this admin as responsible when sending a message
+      if (isAdmin) {
+        const updates: any = { admin_last_read_at: new Date().toISOString() };
+        if (ticket.assigned_admin_id !== currentUser.id) {
+          updates.assigned_admin_id = currentUser.id;
+          updates.assigned_admin_name = currentUser.name;
+        }
+        await supabase.from('tickets').update(updates).eq('id', ticket.id);
       }
       setNewMessage('');
       toast.success('Mensagem enviada!');
