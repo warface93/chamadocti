@@ -266,6 +266,7 @@ export type Database = {
       }
       tickets: {
         Row: {
+          admin_last_read_at: string | null
           assigned_admin_id: string | null
           assigned_admin_name: string | null
           attachment_url: string | null
@@ -283,6 +284,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          admin_last_read_at?: string | null
           assigned_admin_id?: string | null
           assigned_admin_name?: string | null
           attachment_url?: string | null
@@ -300,6 +302,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          admin_last_read_at?: string | null
           assigned_admin_id?: string | null
           assigned_admin_name?: string | null
           attachment_url?: string | null
