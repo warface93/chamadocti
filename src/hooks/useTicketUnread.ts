@@ -21,8 +21,8 @@ export const markTicketSeen = (ticketId: string, userId: string) => {
 };
 
 export const useTicketUnreadCount = (ticketId: string): number => {
-  const { messages } = useData();
-  const { user } = useAuth();
+  const { messages, tickets } = useData();
+  const { user, isAdmin } = useAuth();
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
@@ -39,7 +39,21 @@ export const useTicketUnreadCount = (ticketId: string): number => {
   }, [ticketId]);
 
   if (!user) return 0;
-  const lastSeen = getLastSeen(ticketId, user.id);
+
+  // For admins, use the shared admin_last_read_at from the ticket so the badge
+  // clears for the whole support team when any admin opens the chat.
+  const ticket = tickets.find((t) => t.id === ticketId);
+  let lastSeen: number;
+  if (isAdmin) {
+    const sharedSeen = ticket?.admin_last_read_at
+      ? new Date(ticket.admin_last_read_at).getTime()
+      : 0;
+    const localSeen = getLastSeen(ticketId, user.id);
+    lastSeen = Math.max(sharedSeen, localSeen);
+  } else {
+    lastSeen = getLastSeen(ticketId, user.id);
+  }
+
   void tick;
   return messages.filter(
     (m) =>
