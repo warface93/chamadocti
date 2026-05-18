@@ -136,9 +136,10 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
         status_changed_by: currentUser.name,
         status_changed_at: new Date().toISOString(),
       };
-      if (isAdmin && !ticket.assigned_admin_id) {
+      if (isAdmin) {
         updateData.assigned_admin_id = currentUser.id;
         updateData.assigned_admin_name = currentUser.name;
+        updateData.admin_last_read_at = new Date().toISOString();
       }
       const { error } = await supabase
         .from('tickets')
