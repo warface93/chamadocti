@@ -57,24 +57,31 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
   useEffect(() => {
     refetchMessages(ticket.id);
     if (currentUser) markTicketSeen(ticket.id, currentUser.id);
-    if (isAdmin && currentUser && !ticket.assigned_admin_id) {
-      supabase
-        .from('tickets')
-        .update({
-          assigned_admin_id: currentUser.id,
-          assigned_admin_name: currentUser.name,
-        })
-        .eq('id', ticket.id)
-        .is('assigned_admin_id', null)
-        .then(() => {});
+    if (isAdmin && currentUser) {
+      const updates: any = { admin_last_read_at: new Date().toISOString() };
+      // Always set this admin as responsible when interacting with the ticket
+      if (ticket.assigned_admin_id !== currentUser.id) {
+        updates.assigned_admin_id = currentUser.id;
+        updates.assigned_admin_name = currentUser.name;
+      }
+      supabase.from('tickets').update(updates).eq('id', ticket.id).then(() => {});
     }
   }, [ticket.id]);
 
   // Mark seen whenever new messages arrive while modal is open
   const ticketMessagesLen = messages.filter(m => m.ticket_id === ticket.id).length;
   useEffect(() => {
-    if (currentUser) markTicketSeen(ticket.id, currentUser.id);
-  }, [ticketMessagesLen, currentUser?.id, ticket.id]);
+    if (!currentUser) return;
+    markTicketSeen(ticket.id, currentUser.id);
+    if (isAdmin) {
+      supabase
+        .from('tickets')
+        .update({ admin_last_read_at: new Date().toISOString() })
+        .eq('id', ticket.id)
+        .then(() => {});
+    }
+  }, [ticketMessagesLen, currentUser?.id, ticket.id, isAdmin]);
+
 
   useEffect(() => {
     setSelectedStatus(ticket.status);
