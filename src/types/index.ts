@@ -38,6 +38,7 @@ export interface Ticket {
   assigned_admin_name?: string | null;
   status_changed_by?: string | null;
   status_changed_at?: string | null;
+  admin_last_read_at?: string | null;
   created_at: string;
   updated_at: string;
 }
