@@ -57,13 +57,20 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
   useEffect(() => {
     refetchMessages(ticket.id);
     if (currentUser) markTicketSeen(ticket.id, currentUser.id);
-    if (isAdmin && currentUser) {
-      const updates: any = { admin_last_read_at: new Date().toISOString() };
-      // Always set this admin as responsible when interacting with the ticket
-      if (ticket.assigned_admin_id !== currentUser.id) {
-        updates.assigned_admin_id = currentUser.id;
-        updates.assigned_admin_name = currentUser.name;
+    if (currentUser) {
+      const now = new Date().toISOString();
+      const updates: any = isAdmin
+        ? { admin_last_read_at: now }
+        : { user_last_read_at: now };
+
+      if (isAdmin) {
+        // Always set this admin as responsible when interacting with the ticket
+        if (ticket.assigned_admin_id !== currentUser.id) {
+          updates.assigned_admin_id = currentUser.id;
+          updates.assigned_admin_name = currentUser.name;
+        }
       }
+
       supabase.from('tickets').update(updates).eq('id', ticket.id).then(() => {});
     }
   }, [ticket.id]);
@@ -73,13 +80,12 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
   useEffect(() => {
     if (!currentUser) return;
     markTicketSeen(ticket.id, currentUser.id);
-    if (isAdmin) {
-      supabase
-        .from('tickets')
-        .update({ admin_last_read_at: new Date().toISOString() })
-        .eq('id', ticket.id)
-        .then(() => {});
-    }
+    const field = isAdmin ? 'admin_last_read_at' : 'user_last_read_at';
+    supabase
+      .from('tickets')
+      .update({ [field]: new Date().toISOString() })
+      .eq('id', ticket.id)
+      .then(() => {});
   }, [ticketMessagesLen, currentUser?.id, ticket.id, isAdmin]);
 
 
