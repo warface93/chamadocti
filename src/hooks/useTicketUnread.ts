@@ -40,9 +40,9 @@ export const useTicketUnreadCount = (ticketId: string): number => {
 
   if (!user) return 0;
 
-  // For admins, use the shared admin_last_read_at from the ticket so the badge
-  // clears for the whole support team when any admin opens the chat.
   const ticket = tickets.find((t) => t.id === ticketId);
+  if (!ticket) return 0;
+
   let lastSeen: number;
   if (isAdmin) {
     const sharedSeen = ticket?.admin_last_read_at
@@ -51,14 +51,18 @@ export const useTicketUnreadCount = (ticketId: string): number => {
     const localSeen = getLastSeen(ticketId, user.id);
     lastSeen = Math.max(sharedSeen, localSeen);
   } else {
-    lastSeen = getLastSeen(ticketId, user.id);
+    const sharedSeen = ticket.user_last_read_at
+      ? new Date(ticket.user_last_read_at).getTime()
+      : 0;
+    const localSeen = getLastSeen(ticketId, user.id);
+    lastSeen = Math.max(sharedSeen, localSeen);
   }
 
   void tick;
   return messages.filter(
     (m) =>
       m.ticket_id === ticketId &&
-      m.user_id !== user.id &&
+      (isAdmin ? m.user_id === ticket.user_id : m.user_id !== ticket.user_id) &&
       new Date(m.created_at).getTime() > lastSeen
   ).length;
 };
