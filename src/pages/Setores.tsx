@@ -76,7 +76,7 @@ const Setores = () => {
     return <Navigate to="/meus-chamados" replace />;
   }
 
-  if (loading) {
+  if (loading && sectors.length === 0) {
     return <SetoresSkeleton />;
   }
 
