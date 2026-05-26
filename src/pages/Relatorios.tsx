@@ -106,7 +106,7 @@ const Relatorios = () => {
   }, [tickets]);
 
   if (!isAdmin) return <Navigate to="/meus-chamados" replace />;
-  if (loading) return <RelatoriosSkeleton />;
+  if (loading && tickets.length === 0) return <RelatoriosSkeleton />;
 
   const ratedTickets = tickets.filter(t => t.rating && t.rating > 0);
   const averageRating = ratedTickets.length > 0 ? ratedTickets.reduce((acc, t) => acc + (t.rating || 0), 0) / ratedTickets.length : 0;
