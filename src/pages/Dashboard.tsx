@@ -67,7 +67,7 @@ const Dashboard = () => {
     return <Navigate to="/meus-chamados" replace />;
   }
 
-  if (loading) {
+  if (loading && tickets.length === 0) {
     return <DashboardSkeleton />;
   }
 

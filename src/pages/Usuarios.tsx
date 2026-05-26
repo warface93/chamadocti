@@ -64,7 +64,7 @@ const Usuarios = () => {
     return <Navigate to="/meus-chamados" replace />;
   }
 
-  if (loading) {
+  if (loading && users.length === 0) {
     return <UsersSkeleton />;
   }
 
