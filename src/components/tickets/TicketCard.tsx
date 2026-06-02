@@ -5,6 +5,7 @@ import { Clock, AlertTriangle, UserCheck, MessageCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useTicketUnreadCount } from '@/hooks/useTicketUnread';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface TicketCardProps {
   ticket: Ticket;
