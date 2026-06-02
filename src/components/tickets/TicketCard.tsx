@@ -5,6 +5,7 @@ import { Clock, AlertTriangle, UserCheck, MessageCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useTicketUnreadCount } from '@/hooks/useTicketUnread';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface TicketCardProps {
   ticket: Ticket;
@@ -43,13 +44,23 @@ const categoryLabels: Record<string, string> = {
 };
 
 const TicketCard = ({ ticket, user, onClick, isNewest }: TicketCardProps) => {
+  const { user: currentUser, isAdmin } = useAuth();
   const isCritical = ticket.status === 'critical';
   const isResolved = ticket.status === 'resolved' && ticket.rating != null;
-  const shouldGlow = isNewest !== undefined ? isNewest && ticket.is_new : ticket.is_new;
   const assignedAdminName = ticket.assigned_admin_name || (ticket as any).status_changed_by;
   const rawUnread = useTicketUnreadCount(ticket.id);
   const activeStatuses: typeof ticket.status[] = ['open', 'pending', 'in_progress', 'critical'];
   const unreadCount = activeStatuses.includes(ticket.status) ? rawUnread : 0;
+
+  // Glow stays active until the relevant viewer actually opens the ticket.
+  // - Admin: glow if admin has never opened it OR there are unread user messages
+  // - User (owner): glow if ticket is freshly created OR there are unread admin messages
+  const isOwner = currentUser?.id === ticket.user_id;
+  const shouldGlow = !isResolved && (
+    unreadCount > 0 ||
+    (isAdmin && !ticket.admin_last_read_at) ||
+    (!isAdmin && isOwner && ticket.is_new && !ticket.user_last_read_at)
+  );
 
   return (
     <div
