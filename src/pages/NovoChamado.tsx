@@ -24,10 +24,6 @@ const NovoChamado = () => {
     attachment: null as File | null,
   });
 
-  if (isAdmin) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
   if (!user) {
     return <Navigate to="/login" replace />;
   }
