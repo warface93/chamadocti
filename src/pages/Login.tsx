@@ -301,60 +301,7 @@ const Login = () => {
                   {isLoading ? 'Entrando...' : 'Entrar'}
                 </Button>
 
-                <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRecoveryIdentifier(username?.trim() || '');
-                      setRecoveryOpen(true);
-                    }}
-                    className="text-sm text-primary hover:underline"
-                  >
-                    Esqueci minha senha
-                  </button>
-                </div>
               </form>
-
-              <Dialog open={recoveryOpen} onOpenChange={setRecoveryOpen}>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Recuperar senha</DialogTitle>
-                    <DialogDescription>
-                      Informe seu <strong>usuário</strong> ou <strong>email</strong> para receber o link de redefinição.
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="recoveryIdentifier">Usuário ou email</Label>
-                    <Input
-                      id="recoveryIdentifier"
-                      type="text"
-                      value={recoveryIdentifier}
-                      onChange={(e) => setRecoveryIdentifier(e.target.value)}
-                      placeholder="Ex.: stone ou seuemail@dominio.com"
-                    />
-                  </div>
-
-                  <DialogFooter>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setRecoveryOpen(false)}
-                      disabled={recoverySending}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="glow"
-                      onClick={handleSendRecovery}
-                      disabled={recoverySending}
-                    >
-                      {recoverySending ? 'Enviando...' : 'Enviar link'}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
             </>
           )}
         </div>
