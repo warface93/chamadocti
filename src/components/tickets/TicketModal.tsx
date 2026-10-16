@@ -234,6 +234,18 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
             <Badge className={cn('text-xs', statusStyles[ticket.status])}>
               {statusLabels[ticket.status]}
             </Badge>
+            {isAdmin && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="ml-auto text-muted-foreground hover:text-destructive"
+                onClick={() => setConfirmDeleteOpen(true)}
+                title="Excluir chamado"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
           </DialogTitle>
           <DialogDescription>
             Detalhes do chamado e histórico de mensagens
@@ -435,6 +447,27 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
           </div>
         </div>
       </DialogContent>
+
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir chamado</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o chamado "{ticket.title}"? Esta ação não pode ser desfeita e todo o histórico de mensagens será removido.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDelete(); }}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Excluindo...' : 'Excluir'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 };
