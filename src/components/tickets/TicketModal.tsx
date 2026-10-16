@@ -3,12 +3,13 @@ import { Ticket, User, TicketStatus } from '@/types';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Star, Save, Paperclip, UserCheck, ArrowDown } from 'lucide-react';
+import { Send, Star, Save, Paperclip, UserCheck, ArrowDown, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -39,7 +40,7 @@ const statusStyles = {
 };
 
 const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
-  const { updateTicket, messages, addMessage, users, refetchMessages } = useData();
+  const { updateTicket, deleteTicket, messages, addMessage, users, refetchMessages } = useData();
   const { user: currentUser, isAdmin } = useAuth();
   const [newMessage, setNewMessage] = useState('');
   const [rating, setRating] = useState(ticket.rating || 0);
@@ -47,6 +48,8 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
   const [isSending, setIsSending] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<TicketStatus>(ticket.status);
   const [isSavingStatus, setIsSavingStatus] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [hasNewMessages, setHasNewMessages] = useState(false);
@@ -189,6 +192,20 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
     }
   };
 
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await deleteTicket(ticket.id);
+      toast.success('Chamado excluído com sucesso!');
+      setConfirmDeleteOpen(false);
+      onClose();
+    } catch (error) {
+      toast.error('Erro ao excluir chamado');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleRating = async (value: number) => {
     try {
       setRating(value);
@@ -217,6 +234,18 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
             <Badge className={cn('text-xs', statusStyles[ticket.status])}>
               {statusLabels[ticket.status]}
             </Badge>
+            {isAdmin && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="ml-auto text-muted-foreground hover:text-destructive"
+                onClick={() => setConfirmDeleteOpen(true)}
+                title="Excluir chamado"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
           </DialogTitle>
           <DialogDescription>
             Detalhes do chamado e histórico de mensagens
@@ -418,6 +447,27 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
           </div>
         </div>
       </DialogContent>
+
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir chamado</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o chamado "{ticket.title}"? Esta ação não pode ser desfeita e todo o histórico de mensagens será removido.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDelete(); }}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Excluindo...' : 'Excluir'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 };

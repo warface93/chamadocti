@@ -18,6 +18,7 @@ interface DataContextType {
   deleteSector: (id: string) => Promise<void>;
   addTicket: (ticket: Omit<Ticket, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateTicket: (id: string, ticket: Partial<Ticket>) => Promise<void>;
+  deleteTicket: (id: string) => Promise<void>;
   addMessage: (message: Omit<Message, 'id' | 'created_at'>) => Promise<void>;
   markTicketAsRead: (id: string) => Promise<void>;
   getNewTicketsCount: () => number;
@@ -431,6 +432,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const deleteTicket = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('tickets')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setTickets(prev => prev.filter(t => t.id !== id));
+      setMessages(prev => prev.filter(m => m.ticket_id !== id));
+    } catch (error) {
+      console.error('Error deleting ticket:', error);
+      throw error;
+    }
+  };
+
   const addMessage = async (messageData: Omit<Message, 'id' | 'created_at'>) => {
     try {
       const { data, error } = await supabase
@@ -482,6 +500,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       deleteSector,
       addTicket,
       updateTicket,
+      deleteTicket,
       addMessage,
       markTicketAsRead,
       getNewTicketsCount,

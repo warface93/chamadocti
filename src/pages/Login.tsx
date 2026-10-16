@@ -4,14 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Lock, User, Mail, UserPlus, Phone } from 'lucide-react';
 import logoArpe from '@/assets/logo_arpe.png';
 import { toast } from 'sonner';
@@ -25,11 +17,6 @@ const Login = () => {
   const [hasUsers, setHasUsers] = useState<boolean | null>(null);
   const [isSignUpMode, setIsSignUpMode] = useState(false);
 
-  // Password recovery
-  const [recoveryOpen, setRecoveryOpen] = useState(false);
-  const [recoveryIdentifier, setRecoveryIdentifier] = useState('');
-  const [recoverySending, setRecoverySending] = useState(false);
-  
   // Sign up fields
   const [signUpName, setSignUpName] = useState('');
   const [signUpUsername, setSignUpUsername] = useState('');
@@ -78,45 +65,6 @@ const Login = () => {
       toast.error('Erro ao fazer login');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleSendRecovery = async () => {
-    const value = recoveryIdentifier.trim();
-
-    if (!value) {
-      toast.error('Digite seu usuário ou email');
-      return;
-    }
-
-    setRecoverySending(true);
-    try {
-      let email: string | null = null;
-
-      if (value.includes('@')) {
-        email = value;
-      } else {
-        const { data, error } = await supabase.rpc('get_email_by_username', {
-          _username: value,
-        });
-        if (error) throw error;
-        email = data;
-      }
-
-      if (email) {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/reset-password`,
-        });
-        if (error) throw error;
-      }
-
-      toast.success('Se o usuário existir, enviamos um email para redefinir a senha.');
-      setRecoveryOpen(false);
-    } catch (error: any) {
-      console.error('Password recovery error:', error);
-      toast.error(error?.message || 'Não foi possível enviar o email de recuperação');
-    } finally {
-      setRecoverySending(false);
     }
   };
 
@@ -353,60 +301,7 @@ const Login = () => {
                   {isLoading ? 'Entrando...' : 'Entrar'}
                 </Button>
 
-                <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRecoveryIdentifier(username?.trim() || '');
-                      setRecoveryOpen(true);
-                    }}
-                    className="text-sm text-primary hover:underline"
-                  >
-                    Esqueci minha senha
-                  </button>
-                </div>
               </form>
-
-              <Dialog open={recoveryOpen} onOpenChange={setRecoveryOpen}>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Recuperar senha</DialogTitle>
-                    <DialogDescription>
-                      Informe seu <strong>usuário</strong> ou <strong>email</strong> para receber o link de redefinição.
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="recoveryIdentifier">Usuário ou email</Label>
-                    <Input
-                      id="recoveryIdentifier"
-                      type="text"
-                      value={recoveryIdentifier}
-                      onChange={(e) => setRecoveryIdentifier(e.target.value)}
-                      placeholder="Ex.: stone ou seuemail@dominio.com"
-                    />
-                  </div>
-
-                  <DialogFooter>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setRecoveryOpen(false)}
-                      disabled={recoverySending}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="glow"
-                      onClick={handleSendRecovery}
-                      disabled={recoverySending}
-                    >
-                      {recoverySending ? 'Enviando...' : 'Enviar link'}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
             </>
           )}
         </div>
