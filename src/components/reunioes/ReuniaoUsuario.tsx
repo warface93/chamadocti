@@ -480,6 +480,12 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          <div className="flex items-start gap-3 p-3 rounded-lg border border-warning/40 bg-warning/10">
+            <AlertTriangle className="w-4 h-4 text-warning mt-0.5 shrink-0" />
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <span className="font-semibold text-foreground">Atenção ao agendar sua reunião:</span> as solicitações devem ser feitas com pelo menos <span className="font-semibold text-foreground">10 minutos de antecedência</span> em relação ao horário de início. Esse intervalo é necessário para que a equipe de TI organize os recursos e prepare os equipamentos solicitados a tempo.
+            </p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Data da Reunião</Label>
@@ -503,13 +509,13 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
                 <SelectContent>
                   {TIME_SLOTS.map(t => {
                     const taken = location && FIXED_LOCATIONS.includes(location) ? isTimeSlotTaken(t, location) : false;
-                    const passed = isTimePassed(t, date);
+                    const blocked = violatesMinAdvance(t, date);
                     return (
-                      <SelectItem key={t} value={t} disabled={taken || passed}>
+                      <SelectItem key={t} value={t} disabled={taken || blocked}>
                         <span className="flex items-center gap-2">
                           {t}
                           {taken && <span className="text-destructive text-xs">Indisponível</span>}
-                          {passed && !taken && <span className="text-muted-foreground text-xs">Passado</span>}
+                          {blocked && !taken && <span className="text-muted-foreground text-xs">Indisponível</span>}
                         </span>
                       </SelectItem>
                     );
@@ -828,12 +834,12 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
                     {TIME_SLOTS.map(t => {
-                      const passed = isTimePassed(t, editDate);
+                      const blocked = violatesMinAdvance(t, editDate);
                       const taken = isTimeSlotTaken(t, editLocation, editingMeeting?.id);
-                      const disabled = passed || taken;
+                      const disabled = blocked || taken;
                       return (
                         <SelectItem key={t} value={t} disabled={disabled}>
-                          <span className="flex items-center gap-2">{t}{passed && <span className="text-destructive text-xs">passado</span>}{!passed && taken && <span className="text-destructive text-xs">ocupado</span>}</span>
+                          <span className="flex items-center gap-2">{t}{blocked && <span className="text-destructive text-xs">indisponível</span>}{!blocked && taken && <span className="text-destructive text-xs">ocupado</span>}</span>
                         </SelectItem>
                       );
                     })}
