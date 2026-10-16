@@ -17,6 +17,7 @@ import { format, isAfter, parse, isToday, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { violatesMinAdvance, MIN_ADVANCE_MESSAGE } from '@/lib/meetingTime';
 
 const TIME_SLOTS = [
   '07:30', '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
@@ -96,7 +97,7 @@ const isTimePassed = (time: string, selectedDate: Date | undefined) => {
   return isBefore(slotDate, now);
 };
 
-const ReuniaoUsuario = () => {
+const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [date, setDate] = useState<Date>();
@@ -323,9 +324,9 @@ const ReuniaoUsuario = () => {
       return;
     }
 
-    // Check past time for today
-    if (isTimePassed(effectiveStart, date)) {
-      toast({ title: 'Não é possível agendar reuniões em horários que já passaram.', variant: 'destructive' });
+    // Check minimum 10-minute advance (also covers past times/dates)
+    if (violatesMinAdvance(effectiveStart, date)) {
+      toast({ title: MIN_ADVANCE_MESSAGE, variant: 'destructive' });
       return;
     }
 
@@ -420,8 +421,8 @@ const ReuniaoUsuario = () => {
       return;
     }
 
-    if (isTimePassed(editStartTime, editDate) || isTimePassed(editEndTime, editDate)) {
-      toast({ title: 'Não é possível selecionar um horário que já passou.', variant: 'destructive' });
+    if (violatesMinAdvance(editStartTime, editDate)) {
+      toast({ title: MIN_ADVANCE_MESSAGE, variant: 'destructive' });
       return;
     }
 
