@@ -23,6 +23,7 @@ export type Database = {
           id: string
           status: string
           tombamento: string | null
+          total_quantity: number
           type: string
           updated_at: string
         }
@@ -34,6 +35,7 @@ export type Database = {
           id?: string
           status?: string
           tombamento?: string | null
+          total_quantity?: number
           type: string
           updated_at?: string
         }
@@ -45,6 +47,7 @@ export type Database = {
           id?: string
           status?: string
           tombamento?: string | null
+          total_quantity?: number
           type?: string
           updated_at?: string
         }
@@ -61,26 +64,42 @@ export type Database = {
       meeting_admin_items: {
         Row: {
           description: string
+          equipment_id: string | null
           id: string
+          loaned_at: string
           meeting_id: string
           quantity: number
+          returned_at: string | null
           tombamento: string | null
         }
         Insert: {
           description: string
+          equipment_id?: string | null
           id?: string
+          loaned_at?: string
           meeting_id: string
           quantity?: number
+          returned_at?: string | null
           tombamento?: string | null
         }
         Update: {
           description?: string
+          equipment_id?: string | null
           id?: string
+          loaned_at?: string
           meeting_id?: string
           quantity?: number
+          returned_at?: string | null
           tombamento?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "meeting_admin_items_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_inventory"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "meeting_admin_items_meeting_id_fkey"
             columns: ["meeting_id"]
@@ -125,6 +144,7 @@ export type Database = {
           link_platform: string | null
           location: string
           meeting_date: string
+          off_hours_justification: string | null
           other_description: string | null
           ramal: string | null
           start_time: string
@@ -141,6 +161,7 @@ export type Database = {
           link_platform?: string | null
           location: string
           meeting_date: string
+          off_hours_justification?: string | null
           other_description?: string | null
           ramal?: string | null
           start_time: string
@@ -157,6 +178,7 @@ export type Database = {
           link_platform?: string | null
           location?: string
           meeting_date?: string
+          off_hours_justification?: string | null
           other_description?: string | null
           ramal?: string | null
           start_time?: string
@@ -348,6 +370,7 @@ export type Database = {
     }
     Functions: {
       check_has_users: { Args: never; Returns: boolean }
+      equipment_loaned_qty: { Args: { _equipment_id: string }; Returns: number }
       get_email_by_username: { Args: { _username: string }; Returns: string }
       get_meeting_user_names: {
         Args: never
@@ -360,6 +383,18 @@ export type Database = {
       is_ticket_owner: {
         Args: { _ticket_id: string; _user_id: string }
         Returns: boolean
+      }
+      loan_equipment: {
+        Args: { _equipment_id: string; _meeting_id: string; _quantity: number }
+        Returns: string
+      }
+      refresh_equipment_status: {
+        Args: { _equipment_id: string }
+        Returns: undefined
+      }
+      return_loan_item: {
+        Args: { _item_id: string; _quantity?: number }
+        Returns: undefined
       }
     }
     Enums: {

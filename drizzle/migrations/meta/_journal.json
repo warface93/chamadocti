@@ -8,6 +8,13 @@
       "when": 1792409080293,
       "tag": "0000_meeting_min_advance_validation",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792414765947,
+      "tag": "0001_equipment_stock_and_offhours_meetings",
+      "breakpoints": true
     }
   ]
 }
