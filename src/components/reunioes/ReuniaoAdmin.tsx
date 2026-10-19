@@ -16,6 +16,7 @@ import { format, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { violatesMinAdvance, MIN_ADVANCE_MESSAGE } from '@/lib/meetingTime';
 
 interface MeetingWithDetails {
   id: string;
@@ -295,6 +296,9 @@ const ReuniaoAdmin = () => {
     }
     if (editStartTime >= editEndTime) {
       toast({ title: 'Horário de término deve ser após o início', variant: 'destructive' }); return;
+    }
+    if (violatesMinAdvance(editStartTime, editDate)) {
+      toast({ title: MIN_ADVANCE_MESSAGE, variant: 'destructive' }); return;
     }
     const dateStr = format(editDate, 'yyyy-MM-dd');
     const FIXED = ['3° Andar', '2° Andar', 'Auditório'];

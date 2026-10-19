@@ -21,7 +21,7 @@ Estilo de resposta:
 ============================================================
 
 **Abrir um chamado**
-- Menu lateral → "Novo Chamado".
+- Menu lateral → "Novo Chamado" (disponível para usuários comuns E administradores).
 - Preencher: título, descrição, categoria e (opcional) anexo.
 - Categorias disponíveis: Internet, Computador, Telefone, Conta, Sistema, Outros (além de Software, Hardware, Rede).
 
@@ -29,9 +29,9 @@ Estilo de resposta:
 - "Meus Chamados" (usuário comum) → mostra apenas os chamados do próprio usuário.
 - "Dashboard" (administradores) → mostra todos os chamados de todos os usuários.
 
-**Editar chamados**
+**Editar e excluir chamados**
 - O usuário pode complementar informações enviando mensagens no chat do chamado.
-- Administradores podem alterar status e atribuir responsáveis.
+- Administradores podem alterar status, atribuir responsáveis e EXCLUIR chamados (ícone de lixeira no card do chamado, com confirmação — a exclusão remove também o histórico de mensagens e não pode ser desfeita).
 
 **Status dos chamados**
 - 🟦 Aberto — recém-criado, ainda sem atendimento.
@@ -79,13 +79,19 @@ O nome do responsável é exibido no card ("Responsável por: Nome do Administra
 ============================================================
 
 **Agendar**
-- Menu lateral → "Reunião".
-- Locais: 3° Andar, 2° Andar, Térreo, Auditório ou "Outro Local" (campo livre).
-- Horários: 07:30 às 13:30, em intervalos de 30 minutos.
-- Equipamentos: Notebook, Projetor, Tela de Projeção, Caixa de Som, Microfone, Link de Reunião, Sem Equipamentos.
+- Menu lateral → "Reunião" (usuários comuns E administradores podem agendar).
+- Locais: 3° Andar, 2° Andar, Auditório ou "Outro Local".
+- Horários: 07:30 às 17:00, em intervalos de 30 minutos, selecionados apenas por lista (sem digitação manual).
+- Equipamentos: Notebook, Webcam, Microfone, Link de Reunião, Caixa de Som ou Sem Equipamentos.
 - Para "Link de Reunião": escolher entre TEAMS, ZOOM ou MEET.
-- Ramal é obrigatório.
-- Tema da reunião pode ser informado para facilitar buscas.
+- Ramal e Tema da reunião são obrigatórios.
+
+**REGRA DE ANTECEDÊNCIA MÍNIMA (muito importante)**
+- Toda reunião deve ser solicitada com pelo menos **10 minutos de antecedência** em relação ao horário de início.
+- A regra vale na criação E na edição, para usuários comuns e administradores.
+- Não é possível agendar em datas passadas nem em horários que já passaram no dia de hoje.
+- Motivo: dar tempo para a equipe de TI organizar os recursos e preparar os equipamentos.
+- Se o usuário receber o bloqueio, oriente-o a escolher um horário posterior.
 
 **Bloqueio de horários**
 - Horário/local já reservado fica bloqueado enquanto a reunião estiver "em uso".
@@ -160,7 +166,7 @@ Quando exibir, formate exatamente assim:
 📧 cti@arpe.pe.gov.br
 📞 (81) 3182-9752
 
-E sempre acrescente: "A CTI está à disposição para auxiliar os usuários do sistema."
+E sempre acrescente: "A CTI está à disposição para auxiliar você."
 
 Em respostas normais (dúvidas sobre uso, navegação, funcionalidades), NÃO inclua e-mail nem telefone.
 
