@@ -212,13 +212,8 @@ const ReuniaoAdmin = () => {
     if (error) {
       toast({ title: 'Erro ao atualizar status', variant: 'destructive' });
     } else {
-      // If status changed to devolvido, release all equipment linked to this meeting
-      if (newStatus === 'devolvido') {
-        await supabase.from('equipment_inventory')
-          .update({ status: 'disponivel', current_meeting_id: null } as any)
-          .eq('current_meeting_id', meetingId);
-        fetchInventory();
-      }
+      // Equipamentos são liberados automaticamente pelo gatilho do banco ao mudar para "devolvido"
+      if (newStatus === 'devolvido') fetchInventory();
       toast({ title: 'Status atualizado com sucesso!' });
       fetchMeetings();
       setDialogOpen(false);
@@ -238,12 +233,7 @@ const ReuniaoAdmin = () => {
     if (error) {
       toast({ title: 'Erro ao finalizar reunião', variant: 'destructive' });
     } else {
-      if (newStatus === 'devolvido') {
-        await supabase.from('equipment_inventory')
-          .update({ status: 'disponivel', current_meeting_id: null } as any)
-          .eq('current_meeting_id', meetingId);
-        fetchInventory();
-      }
+      if (newStatus === 'devolvido') fetchInventory();
       toast({ title: isSemEquipamentos ? 'Reunião finalizada e devolvida!' : 'Reunião finalizada!' });
       fetchMeetings();
     }
