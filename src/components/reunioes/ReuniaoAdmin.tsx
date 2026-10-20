@@ -103,6 +103,8 @@ const ReuniaoAdmin = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [inventoryEquipment, setInventoryEquipment] = useState<InventoryEquipment[]>([]);
   const [selectedEquipmentId, setSelectedEquipmentId] = useState('');
+  const [loanQty, setLoanQty] = useState('1');
+  const [returnQtyMap, setReturnQtyMap] = useState<Record<string, string>>({});
 
   // Search filters
   const [searchDate, setSearchDate] = useState('');
@@ -117,6 +119,7 @@ const ReuniaoAdmin = () => {
   const [editEndTime, setEditEndTime] = useState('');
   const [editLocation, setEditLocation] = useState('');
   const [editCalendarOpen, setEditCalendarOpen] = useState(false);
+  const [editJustification, setEditJustification] = useState('');
 
   useEffect(() => {
     fetchMeetings();
