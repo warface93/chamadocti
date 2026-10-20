@@ -242,29 +242,25 @@ const ReuniaoAdmin = () => {
   const handleAddItem = async () => {
     if (!selectedMeeting) return;
 
-    // If an inventory equipment is selected, use it
+    // If an inventory equipment is selected, use it (via função segura do banco)
     if (selectedEquipmentId) {
       const eq = inventoryEquipment.find(e => e.id === selectedEquipmentId);
       if (!eq) return;
+      const qty = parseInt(loanQty) || 1;
 
-      const { error } = await supabase.from('meeting_admin_items').insert({
-        meeting_id: selectedMeeting.id,
-        description: `${eq.type} - ${eq.brand}`,
-        quantity: 1,
-        tombamento: eq.tombamento,
+      const { error } = await supabase.rpc('loan_equipment', {
+        _meeting_id: selectedMeeting.id,
+        _equipment_id: eq.id,
+        _quantity: qty,
       });
       if (error) {
-        toast({ title: 'Erro ao cadastrar equipamento', variant: 'destructive' });
+        toast({ title: 'Erro ao emprestar equipamento', description: error.message, variant: 'destructive' });
         return;
       }
 
-      // Mark equipment as loaned
-      await supabase.from('equipment_inventory')
-        .update({ status: 'em_emprestimo', current_meeting_id: selectedMeeting.id } as any)
-        .eq('id', eq.id);
-
       toast({ title: 'Equipamento emprestado!' });
       setSelectedEquipmentId('');
+      setLoanQty('1');
       fetchInventory();
     } else if (newItemDesc.trim()) {
       // Manual entry fallback
