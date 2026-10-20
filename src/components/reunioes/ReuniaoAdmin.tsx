@@ -105,6 +105,7 @@ const ReuniaoAdmin = () => {
   const [selectedEquipmentId, setSelectedEquipmentId] = useState('');
   const [loanQty, setLoanQty] = useState('1');
   const [returnQtyMap, setReturnQtyMap] = useState<Record<string, string>>({});
+  const [loanedQtyMap, setLoanedQtyMap] = useState<Map<string, number>>(new Map());
 
   // Search filters
   const [searchDate, setSearchDate] = useState('');
@@ -141,9 +142,19 @@ const ReuniaoAdmin = () => {
   }, []);
 
   const fetchInventory = async () => {
-    const { data } = await supabase.from('equipment_inventory').select('*').eq('active', true);
-    if (data) setInventoryEquipment(data as InventoryEquipment[]);
+    const [eqRes, loansRes] = await Promise.all([
+      supabase.from('equipment_inventory').select('*').eq('active', true),
+      supabase.from('meeting_admin_items').select('equipment_id, quantity').is('returned_at', null).not('equipment_id', 'is', null),
+    ]);
+    if (eqRes.data) setInventoryEquipment(eqRes.data as InventoryEquipment[]);
+    const map = new Map<string, number>();
+    (loansRes.data || []).forEach((item: any) => {
+      map.set(item.equipment_id, (map.get(item.equipment_id) || 0) + item.quantity);
+    });
+    setLoanedQtyMap(map);
   };
+
+  const getAvailableQty = (eq: InventoryEquipment) => eq.total_quantity - (loanedQtyMap.get(eq.id) || 0);
 
   const fetchMeetings = async () => {
     try {
