@@ -35,6 +35,7 @@ interface MeetingWithDetails {
   equipment: string[];
   admin_items: AdminItem[];
   theme?: string | null;
+  off_hours_justification?: string | null;
 }
 
 interface AdminItem {
@@ -283,6 +284,22 @@ const ReuniaoAdmin = () => {
     fetchMeetings();
     const { data: items } = await supabase.from('meeting_admin_items').select('*').eq('meeting_id', selectedMeeting.id);
     setSelectedMeeting(prev => prev ? { ...prev, admin_items: (items as AdminItem[]) || [] } : null);
+  };
+
+  const handleReturnItem = async (item: AdminItem) => {
+    const qty = parseInt(returnQtyMap[item.id] || String(item.quantity)) || item.quantity;
+    const { error } = await supabase.rpc('return_loan_item', { _item_id: item.id, _quantity: qty });
+    if (error) {
+      toast({ title: 'Erro ao devolver', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: qty >= item.quantity ? 'Equipamento devolvido!' : `${qty} unidade(s) devolvida(s)!` });
+    fetchInventory();
+    fetchMeetings();
+    if (selectedMeeting) {
+      const { data: items } = await supabase.from('meeting_admin_items').select('*').eq('meeting_id', selectedMeeting.id);
+      setSelectedMeeting(prev => prev ? { ...prev, admin_items: (items as AdminItem[]) || [] } : null);
+    }
   };
 
   const openDetail = (meeting: MeetingWithDetails) => { setSelectedMeeting(meeting); setDialogOpen(true); };
