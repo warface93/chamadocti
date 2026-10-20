@@ -3,6 +3,15 @@ export const MIN_ADVANCE_MINUTES = 10;
 export const MIN_ADVANCE_MESSAGE =
   'Não foi possível realizar o agendamento. Para garantir a organização e a preparação dos recursos necessários, as reuniões devem ser solicitadas com pelo menos 10 minutos de antecedência. Solicitações feitas em um prazo menor podem não permitir que a equipe de TI prepare os equipamentos e atenda à demanda a tempo. Por favor, escolha um horário posterior. Agradecemos a compreensão.';
 
+export const STANDARD_START = '07:30';
+export const STANDARD_END = '17:00';
+
+/** Retorna true quando o horário está fora do padrão 07:30–17:00 (exige justificativa do admin). */
+export function isOutsideStandardHours(start: string, end: string): boolean {
+  if (!/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end)) return false;
+  return start < STANDARD_START || end > STANDARD_END;
+}
+
 const isSameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() &&
   a.getMonth() === b.getMonth() &&

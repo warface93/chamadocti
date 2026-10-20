@@ -16,7 +16,7 @@ import { format, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { violatesMinAdvance, MIN_ADVANCE_MESSAGE } from '@/lib/meetingTime';
+import { violatesMinAdvance, MIN_ADVANCE_MESSAGE, isOutsideStandardHours } from '@/lib/meetingTime';
 
 interface MeetingWithDetails {
   id: string;
@@ -35,6 +35,7 @@ interface MeetingWithDetails {
   equipment: string[];
   admin_items: AdminItem[];
   theme?: string | null;
+  off_hours_justification?: string | null;
 }
 
 interface AdminItem {
@@ -43,6 +44,9 @@ interface AdminItem {
   description: string;
   quantity: number;
   tombamento: string | null;
+  equipment_id?: string | null;
+  returned_at?: string | null;
+  loaned_at?: string | null;
 }
 
 interface InventoryEquipment {
@@ -52,6 +56,7 @@ interface InventoryEquipment {
   tombamento: string | null;
   status: string;
   current_meeting_id: string | null;
+  total_quantity: number;
 }
 
 const EQUIPMENT_LABELS: Record<string, string> = {
@@ -99,6 +104,9 @@ const ReuniaoAdmin = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [inventoryEquipment, setInventoryEquipment] = useState<InventoryEquipment[]>([]);
   const [selectedEquipmentId, setSelectedEquipmentId] = useState('');
+  const [loanQty, setLoanQty] = useState('1');
+  const [returnQtyMap, setReturnQtyMap] = useState<Record<string, string>>({});
+  const [loanedQtyMap, setLoanedQtyMap] = useState<Map<string, number>>(new Map());
 
   // Search filters
   const [searchDate, setSearchDate] = useState('');
@@ -113,6 +121,7 @@ const ReuniaoAdmin = () => {
   const [editEndTime, setEditEndTime] = useState('');
   const [editLocation, setEditLocation] = useState('');
   const [editCalendarOpen, setEditCalendarOpen] = useState(false);
+  const [editJustification, setEditJustification] = useState('');
 
   useEffect(() => {
     fetchMeetings();
@@ -134,9 +143,19 @@ const ReuniaoAdmin = () => {
   }, []);
 
   const fetchInventory = async () => {
-    const { data } = await supabase.from('equipment_inventory').select('*').eq('active', true);
-    if (data) setInventoryEquipment(data as InventoryEquipment[]);
+    const [eqRes, loansRes] = await Promise.all([
+      supabase.from('equipment_inventory').select('*').eq('active', true),
+      supabase.from('meeting_admin_items').select('equipment_id, quantity').is('returned_at', null).not('equipment_id', 'is', null),
+    ]);
+    if (eqRes.data) setInventoryEquipment(eqRes.data as InventoryEquipment[]);
+    const map = new Map<string, number>();
+    (loansRes.data || []).forEach((item: any) => {
+      map.set(item.equipment_id, (map.get(item.equipment_id) || 0) + item.quantity);
+    });
+    setLoanedQtyMap(map);
   };
+
+  const getAvailableQty = (eq: InventoryEquipment) => eq.total_quantity - (loanedQtyMap.get(eq.id) || 0);
 
   const fetchMeetings = async () => {
     try {
@@ -194,13 +213,8 @@ const ReuniaoAdmin = () => {
     if (error) {
       toast({ title: 'Erro ao atualizar status', variant: 'destructive' });
     } else {
-      // If status changed to devolvido, release all equipment linked to this meeting
-      if (newStatus === 'devolvido') {
-        await supabase.from('equipment_inventory')
-          .update({ status: 'disponivel', current_meeting_id: null } as any)
-          .eq('current_meeting_id', meetingId);
-        fetchInventory();
-      }
+      // Equipamentos são liberados automaticamente pelo gatilho do banco ao mudar para "devolvido"
+      if (newStatus === 'devolvido') fetchInventory();
       toast({ title: 'Status atualizado com sucesso!' });
       fetchMeetings();
       setDialogOpen(false);
@@ -220,12 +234,7 @@ const ReuniaoAdmin = () => {
     if (error) {
       toast({ title: 'Erro ao finalizar reunião', variant: 'destructive' });
     } else {
-      if (newStatus === 'devolvido') {
-        await supabase.from('equipment_inventory')
-          .update({ status: 'disponivel', current_meeting_id: null } as any)
-          .eq('current_meeting_id', meetingId);
-        fetchInventory();
-      }
+      if (newStatus === 'devolvido') fetchInventory();
       toast({ title: isSemEquipamentos ? 'Reunião finalizada e devolvida!' : 'Reunião finalizada!' });
       fetchMeetings();
     }
@@ -234,29 +243,25 @@ const ReuniaoAdmin = () => {
   const handleAddItem = async () => {
     if (!selectedMeeting) return;
 
-    // If an inventory equipment is selected, use it
+    // If an inventory equipment is selected, use it (via função segura do banco)
     if (selectedEquipmentId) {
       const eq = inventoryEquipment.find(e => e.id === selectedEquipmentId);
       if (!eq) return;
+      const qty = parseInt(loanQty) || 1;
 
-      const { error } = await supabase.from('meeting_admin_items').insert({
-        meeting_id: selectedMeeting.id,
-        description: `${eq.type} - ${eq.brand}`,
-        quantity: 1,
-        tombamento: eq.tombamento,
+      const { error } = await supabase.rpc('loan_equipment', {
+        _meeting_id: selectedMeeting.id,
+        _equipment_id: eq.id,
+        _quantity: qty,
       });
       if (error) {
-        toast({ title: 'Erro ao cadastrar equipamento', variant: 'destructive' });
+        toast({ title: 'Erro ao emprestar equipamento', description: error.message, variant: 'destructive' });
         return;
       }
 
-      // Mark equipment as loaned
-      await supabase.from('equipment_inventory')
-        .update({ status: 'em_emprestimo', current_meeting_id: selectedMeeting.id } as any)
-        .eq('id', eq.id);
-
       toast({ title: 'Equipamento emprestado!' });
       setSelectedEquipmentId('');
+      setLoanQty('1');
       fetchInventory();
     } else if (newItemDesc.trim()) {
       // Manual entry fallback
@@ -279,6 +284,22 @@ const ReuniaoAdmin = () => {
     fetchMeetings();
     const { data: items } = await supabase.from('meeting_admin_items').select('*').eq('meeting_id', selectedMeeting.id);
     setSelectedMeeting(prev => prev ? { ...prev, admin_items: (items as AdminItem[]) || [] } : null);
+  };
+
+  const handleReturnItem = async (item: AdminItem) => {
+    const qty = parseInt(returnQtyMap[item.id] || String(item.quantity)) || item.quantity;
+    const { error } = await supabase.rpc('return_loan_item', { _item_id: item.id, _quantity: qty });
+    if (error) {
+      toast({ title: 'Erro ao devolver', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: qty >= item.quantity ? 'Equipamento devolvido!' : `${qty} unidade(s) devolvida(s)!` });
+    fetchInventory();
+    fetchMeetings();
+    if (selectedMeeting) {
+      const { data: items } = await supabase.from('meeting_admin_items').select('*').eq('meeting_id', selectedMeeting.id);
+      setSelectedMeeting(prev => prev ? { ...prev, admin_items: (items as AdminItem[]) || [] } : null);
+    }
   };
 
   const openDetail = (meeting: MeetingWithDetails) => { setSelectedMeeting(meeting); setDialogOpen(true); };
