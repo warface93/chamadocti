@@ -16,7 +16,7 @@ import { format, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { violatesMinAdvance, MIN_ADVANCE_MESSAGE } from '@/lib/meetingTime';
+import { violatesMinAdvance, MIN_ADVANCE_MESSAGE, isOutsideStandardHours } from '@/lib/meetingTime';
 
 interface MeetingWithDetails {
   id: string;
@@ -43,6 +43,9 @@ interface AdminItem {
   description: string;
   quantity: number;
   tombamento: string | null;
+  equipment_id?: string | null;
+  returned_at?: string | null;
+  loaned_at?: string | null;
 }
 
 interface InventoryEquipment {
@@ -52,6 +55,7 @@ interface InventoryEquipment {
   tombamento: string | null;
   status: string;
   current_meeting_id: string | null;
+  total_quantity: number;
 }
 
 const EQUIPMENT_LABELS: Record<string, string> = {
