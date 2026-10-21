@@ -15,6 +15,13 @@
       "when": 1792414765947,
       "tag": "0001_equipment_stock_and_offhours_meetings",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792583373868,
+      "tag": "0002_complete_partial_return_lifecycle",
+      "breakpoints": true
     }
   ]
 }
