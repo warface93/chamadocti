@@ -17,7 +17,7 @@ import { format, isAfter, parse, isToday, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { violatesMinAdvance, MIN_ADVANCE_MESSAGE } from '@/lib/meetingTime';
+import { ADMIN_TIME_SLOTS, canScheduleHours, isOutsideStandardHours, violatesMinAdvance, MIN_ADVANCE_MESSAGE } from '@/lib/meetingTime';
 
 const TIME_SLOTS = [
   '07:30', '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
@@ -98,7 +98,9 @@ const isTimePassed = (time: string, selectedDate: Date | undefined) => {
 };
 
 const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const timeSlots = isAdmin ? ADMIN_TIME_SLOTS : TIME_SLOTS;
+  const [justification, setJustification] = useState('');
   const { toast } = useToast();
   const [date, setDate] = useState<Date>();
   const [startTime, setStartTime] = useState('');
@@ -136,6 +138,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
   const [editCalendarOpen, setEditCalendarOpen] = useState(false);
 
   useEffect(() => {
+    if (!user) return;
     fetchExistingMeetings();
     fetchMyMeetings();
     fetchAllActiveMeetings();
@@ -149,8 +152,8 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
       })
       .subscribe();
 
-    return () => { channel.unsubscribe(); };
-  }, []);
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id]);
 
   const fetchAllActiveMeetings = async () => {
     const { data: meetings } = await supabase
@@ -314,8 +317,8 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
       return;
     }
 
-    if (!isTimeInRange(effectiveStart) || !isTimeInRange(effectiveEnd)) {
-      toast({ title: 'Horário deve estar entre 07:30 e 17:00', variant: 'destructive' });
+    if (!canScheduleHours(effectiveStart, effectiveEnd, isAdmin, justification)) {
+      toast({ title: isAdmin ? 'Informe horários válidos e a justificativa para agendamento fora do horário padrão' : 'Horário deve estar entre 07:30 e 17:00', variant: 'destructive' });
       return;
     }
 
@@ -359,6 +362,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
         link_platform: selectedEquipment.includes('link_reuniao') ? linkPlatform : null,
         link_creator: selectedEquipment.includes('link_reuniao') ? linkCreator : null,
         theme: theme.trim(),
+        off_hours_justification: isAdmin ? justification.trim() || null : null,
       } as any).select().single();
 
       if (error) throw error;
@@ -372,7 +376,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
       toast({ title: 'Solicitação enviada com sucesso!' });
       setDate(undefined); setStartTime(''); setEndTime(''); setCustomStartTime(''); setCustomEndTime('');
       setLocation(''); setSelectedEquipment([]); setOtherDescription(''); setRamal('');
-      setLinkPlatform(''); setLinkCreator(''); setTheme('');
+      setLinkPlatform(''); setLinkCreator(''); setTheme(''); setJustification('');
       fetchExistingMeetings(); fetchMyMeetings(); fetchAllActiveMeetings();
     } catch (err: any) {
       toast({ title: 'Erro ao enviar solicitação', description: err.message, variant: 'destructive' });
@@ -387,7 +391,9 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
       meeting.equipment.length === 0 ||
       (meeting.equipment.length === 1 && meeting.equipment[0] === 'sem_equipamentos')
     );
-    const newStatus = isSemEquipamentos ? 'devolvido' : 'finalizado';
+    const { data: outstanding, error: loansError } = await supabase.from('meeting_admin_items').select('id').eq('meeting_id', meetingId).is('returned_at', null);
+    if (loansError) { toast({ title: 'Erro ao verificar equipamentos emprestados', variant: 'destructive' }); return; }
+    const newStatus = isSemEquipamentos && !outstanding?.length ? 'devolvido' : 'finalizado';
 
     const { error } = await supabase.from('meetings').update({ status: newStatus }).eq('id', meetingId);
     if (error) {
@@ -507,7 +513,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
               <Select value={startTime} onValueChange={(v) => { setStartTime(v); setCustomStartTime(''); }}>
                 <SelectTrigger className="w-full"><SelectValue placeholder="Início" /></SelectTrigger>
                 <SelectContent>
-                  {TIME_SLOTS.map(t => {
+                  {timeSlots.map(t => {
                     const taken = location && FIXED_LOCATIONS.includes(location) ? isTimeSlotTaken(t, location) : false;
                     const blocked = violatesMinAdvance(t, date);
                     return (
@@ -529,7 +535,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
               <Select value={endTime} onValueChange={(v) => { setEndTime(v); setCustomEndTime(''); }}>
                 <SelectTrigger className="w-full"><SelectValue placeholder="Término" /></SelectTrigger>
                 <SelectContent>
-                  {TIME_SLOTS.map(t => {
+                  {timeSlots.map(t => {
                     const effectiveStart = getEffectiveTime(startTime, customStartTime);
                     const taken = location && FIXED_LOCATIONS.includes(location) ? isTimeSlotTaken(t, location) : false;
                     return (
@@ -567,6 +573,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
             </div>
           </div>
 
+          {isAdmin && isOutsideStandardHours(startTime, endTime) && <div className="space-y-2"><Label htmlFor="create-justification">Justificativa para agendamento fora do horário padrão</Label><Textarea id="create-justification" required value={justification} onChange={e => setJustification(e.target.value)} /></div>}
           {/* Theme */}
           <div className="space-y-2">
             <Label>Tema da Reunião <span className="text-destructive">*</span></Label>
@@ -833,7 +840,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
                 <Select value={editStartTime} onValueChange={setEditStartTime}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
-                    {TIME_SLOTS.map(t => {
+                    {timeSlots.map(t => {
                       const blocked = violatesMinAdvance(t, editDate);
                       const taken = isTimeSlotTaken(t, editLocation, editingMeeting?.id);
                       const disabled = blocked || taken;
@@ -851,7 +858,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
                 <Select value={editEndTime} onValueChange={setEditEndTime}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
-                    {TIME_SLOTS.map(t => {
+                    {timeSlots.map(t => {
                       const passed = isTimePassed(t, editDate);
                       const beforeStart = editStartTime ? t <= editStartTime : false;
                       const disabled = passed || beforeStart;

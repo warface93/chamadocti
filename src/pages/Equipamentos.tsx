@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, Edit, Trash2, Search, Monitor, ChevronLeft, ChevronRight, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { isValidQuantity } from '@/lib/equipmentQuantity';
 
 interface Equipment {
   id: string;
@@ -58,8 +59,9 @@ const Equipamentos = () => {
       .channel('equipment-inventory-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment_inventory' }, () => fetchData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'meeting_admin_items' }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'meetings' }, () => fetchData())
       .subscribe();
-    return () => { channel.unsubscribe(); };
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const fetchData = async () => {
@@ -67,13 +69,13 @@ const Equipamentos = () => {
       supabase.from('equipment_inventory').select('*').eq('active', true).order('created_at', { ascending: false }),
       supabase.from('meeting_admin_items').select('id, meeting_id, equipment_id, quantity, loaned_at').is('returned_at', null).not('equipment_id', 'is', null),
       supabase.from('meetings').select('id, user_id, location, meeting_date, start_time, end_time, theme'),
-      supabase.rpc('get_meeting_user_names'),
+      supabase.from('profiles').select('id, name'),
     ]);
 
     if (!eqRes.error && eqRes.data) setEquipment(eqRes.data as Equipment[]);
 
     const meetingMap = new Map((meetingsRes.data || []).map(m => [m.id, m]));
-    const nameMap = new Map(((profilesRes.data as any[]) || []).map(p => [p.user_id, p.name]));
+    const nameMap = new Map((profilesRes.data || []).map(p => [p.id, p.name]));
 
     const loaned = new Map<string, number>();
     const byEquipment = new Map<string, LoanInfo[]>();
@@ -140,9 +142,9 @@ const Equipamentos = () => {
     const type = formData.type.trim();
     const brand = formData.brand.trim();
     const tombamento = formData.tombamento.trim() || null;
-    const quantity = parseInt(formData.quantity) || 1;
+    const quantity = tombamento ? 1 : Number(formData.quantity);
 
-    if (quantity < 1) { toast.error('Quantidade inválida'); return; }
+    if (!isValidQuantity(quantity, Number.MAX_SAFE_INTEGER)) { toast.error('Quantidade inválida'); return; }
     if (tombamento && quantity !== 1) { toast.error('Equipamentos com tombamento devem ter quantidade 1'); return; }
 
     if (editingItem) {

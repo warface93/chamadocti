@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { isValidQuantity } from '@/lib/equipmentQuantity';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -16,7 +18,7 @@ import { format, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { violatesMinAdvance, MIN_ADVANCE_MESSAGE, isOutsideStandardHours } from '@/lib/meetingTime';
+import { ADMIN_TIME_SLOTS, canScheduleHours, violatesMinAdvance, MIN_ADVANCE_MESSAGE, isOutsideStandardHours } from '@/lib/meetingTime';
 
 interface MeetingWithDetails {
   id: string;
@@ -124,23 +126,24 @@ const ReuniaoAdmin = () => {
   const [editJustification, setEditJustification] = useState('');
 
   useEffect(() => {
+    if (!user) return;
     fetchMeetings();
     fetchInventory();
     const meetingsChannel = supabase
       .channel('meetings-admin-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'meetings' }, () => { fetchMeetings(); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'meeting_equipment' }, () => { fetchMeetings(); })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'meeting_admin_items' }, () => { fetchMeetings(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'meeting_admin_items' }, () => { fetchMeetings(); fetchInventory(); })
       .subscribe();
     const inventoryChannel = supabase
       .channel('equipment-inventory-admin-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment_inventory' }, () => { fetchInventory(); })
       .subscribe();
     return () => {
-      meetingsChannel.unsubscribe();
-      inventoryChannel.unsubscribe();
+      supabase.removeChannel(meetingsChannel);
+      supabase.removeChannel(inventoryChannel);
     };
-  }, []);
+  }, [user?.id]);
 
   const fetchInventory = async () => {
     const [eqRes, loansRes] = await Promise.all([
@@ -181,13 +184,15 @@ const ReuniaoAdmin = () => {
         adminItemsMap.set(item.meeting_id, arr);
       });
 
-      setMeetings(meetingsRes.data.map(m => ({
+      const updatedMeetings = meetingsRes.data.map(m => ({
         ...m,
         user_name: profileMap.get(m.user_id) || 'Desconhecido',
         equipment: equipmentMap.get(m.id) || [],
         admin_items: adminItemsMap.get(m.id) || [],
         theme: (m as any).theme || null,
-      })));
+      }));
+      setMeetings(updatedMeetings);
+      setSelectedMeeting(previous => previous ? updatedMeetings.find(m => m.id === previous.id) || null : null);
     } finally {
       setIsLoading(false);
     }
@@ -229,7 +234,8 @@ const ReuniaoAdmin = () => {
       meeting.equipment.length === 0 ||
       (meeting.equipment.length === 1 && meeting.equipment[0] === 'sem_equipamentos')
     );
-    const newStatus = isSemEquipamentos ? 'devolvido' : 'finalizado';
+    const hasOutstanding = meeting?.admin_items.some(item => !item.returned_at);
+    const newStatus = isSemEquipamentos && !hasOutstanding ? 'devolvido' : 'finalizado';
     const { error } = await supabase.from('meetings').update({ status: newStatus }).eq('id', meetingId);
     if (error) {
       toast({ title: 'Erro ao finalizar reunião', variant: 'destructive' });
@@ -247,7 +253,10 @@ const ReuniaoAdmin = () => {
     if (selectedEquipmentId) {
       const eq = inventoryEquipment.find(e => e.id === selectedEquipmentId);
       if (!eq) return;
-      const qty = parseInt(loanQty) || 1;
+      const qty = Number(loanQty);
+      if (!isValidQuantity(qty, getAvailableQty(eq))) {
+        toast({ title: 'Informe uma quantidade inteira entre 1 e o estoque disponível', variant: 'destructive' }); return;
+      }
 
       const { error } = await supabase.rpc('loan_equipment', {
         _meeting_id: selectedMeeting.id,
@@ -264,6 +273,9 @@ const ReuniaoAdmin = () => {
       setLoanQty('1');
       fetchInventory();
     } else if (newItemDesc.trim()) {
+      if (!isValidQuantity(newItemQty, Number.MAX_SAFE_INTEGER)) {
+        toast({ title: 'Quantidade inválida', variant: 'destructive' }); return;
+      }
       // Manual entry fallback
       const { error } = await supabase.from('meeting_admin_items').insert({
         meeting_id: selectedMeeting.id,
@@ -287,12 +299,16 @@ const ReuniaoAdmin = () => {
   };
 
   const handleReturnItem = async (item: AdminItem) => {
-    const qty = parseInt(returnQtyMap[item.id] || String(item.quantity)) || item.quantity;
+    const qty = Number(returnQtyMap[item.id] ?? String(item.quantity));
+    if (!isValidQuantity(qty, item.quantity)) {
+      toast({ title: 'Informe uma quantidade inteira entre 1 e as unidades emprestadas', variant: 'destructive' }); return;
+    }
     const { error } = await supabase.rpc('return_loan_item', { _item_id: item.id, _quantity: qty });
     if (error) {
       toast({ title: 'Erro ao devolver', description: error.message, variant: 'destructive' });
       return;
     }
+    setReturnQtyMap(previous => { const next = { ...previous }; delete next[item.id]; return next; });
     toast({ title: qty >= item.quantity ? 'Equipamento devolvido!' : `${qty} unidade(s) devolvida(s)!` });
     fetchInventory();
     fetchMeetings();
@@ -308,6 +324,7 @@ const ReuniaoAdmin = () => {
     setEditingMeeting(meeting);
     setEditDate(new Date(meeting.meeting_date + 'T00:00:00'));
     setEditStartTime(meeting.start_time); setEditEndTime(meeting.end_time); setEditLocation(meeting.location);
+    setEditJustification(meeting.off_hours_justification || '');
     setEditDialogOpen(true);
   };
 
@@ -321,6 +338,9 @@ const ReuniaoAdmin = () => {
     if (violatesMinAdvance(editStartTime, editDate)) {
       toast({ title: MIN_ADVANCE_MESSAGE, variant: 'destructive' }); return;
     }
+    if (!canScheduleHours(editStartTime, editEndTime, true, editJustification)) {
+      toast({ title: 'Informe a justificativa para agendamento fora do horário padrão', variant: 'destructive' }); return;
+    }
     const dateStr = format(editDate, 'yyyy-MM-dd');
     const FIXED = ['3° Andar', '2° Andar', 'Auditório'];
     if (FIXED.includes(editLocation)) {
@@ -329,7 +349,7 @@ const ReuniaoAdmin = () => {
         ((editStartTime >= m.start_time && editStartTime < m.end_time) || (editEndTime > m.start_time && editEndTime <= m.end_time) || (editStartTime <= m.start_time && editEndTime >= m.end_time)));
       if (conflict) { toast({ title: 'Horário/local indisponível', variant: 'destructive' }); return; }
     }
-    const { error } = await supabase.from('meetings').update({ meeting_date: dateStr, start_time: editStartTime, end_time: editEndTime, location: editLocation }).eq('id', editingMeeting.id);
+    const { error } = await supabase.from('meetings').update({ meeting_date: dateStr, start_time: editStartTime, end_time: editEndTime, location: editLocation, off_hours_justification: editJustification.trim() || null }).eq('id', editingMeeting.id);
     if (error) { toast({ title: 'Erro ao editar reunião', variant: 'destructive' }); }
     else { toast({ title: 'Reunião editada com sucesso!' }); setEditDialogOpen(false); setEditingMeeting(null); fetchMeetings(); }
   };
@@ -469,6 +489,7 @@ const ReuniaoAdmin = () => {
                 {selectedMeeting.link_platform && <div><span className="text-muted-foreground">Plataforma:</span><p className="font-medium text-foreground">{selectedMeeting.link_platform.toUpperCase()}</p></div>}
               </div>
 
+              {selectedMeeting.off_hours_justification && <div><Label>Justificativa para agendamento fora do horário padrão</Label><p className="text-sm text-foreground whitespace-pre-wrap">{selectedMeeting.off_hours_justification}</p></div>}
               {selectedMeeting.theme && (
                 <div><span className="text-sm text-muted-foreground">Tema:</span><p className="text-sm text-foreground p-2 rounded bg-primary/5 border border-primary/20 mt-1">{selectedMeeting.theme}</p></div>
               )}
@@ -515,17 +536,17 @@ const ReuniaoAdmin = () => {
                     <Select value={selectedEquipmentId} onValueChange={setSelectedEquipmentId}>
                       <SelectTrigger className="flex-1"><SelectValue placeholder="Selecione um equipamento cadastrado" /></SelectTrigger>
                       <SelectContent>
-                        {inventoryEquipment.filter(e => e.status === 'disponivel').map(eq => (
+                        {inventoryEquipment.filter(e => getAvailableQty(e) > 0).map(eq => (
                           <SelectItem key={eq.id} value={eq.id}>
-                            {eq.type} - {eq.brand}{eq.tombamento ? ` (${eq.tombamento})` : ''}
+                            {eq.type} - {eq.brand}{eq.tombamento ? ` (${eq.tombamento})` : ''} — {getAvailableQty(eq)} disponível(is)
                           </SelectItem>
                         ))}
-                        {inventoryEquipment.filter(e => e.status === 'disponivel').length === 0 && (
+                        {inventoryEquipment.filter(e => getAvailableQty(e) > 0).length === 0 && (
                           <SelectItem value="none" disabled>Nenhum equipamento disponível</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
-                    <Button size="sm" onClick={handleAddItem} disabled={!selectedEquipmentId}>Emprestar</Button>
+                    <div className="w-20 shrink-0"><Label htmlFor="loan-quantity" className="text-xs">Quantidade</Label><Input id="loan-quantity" type="number" min="1" step="1" max={inventoryEquipment.find(e => e.id === selectedEquipmentId) ? getAvailableQty(inventoryEquipment.find(e => e.id === selectedEquipmentId) as InventoryEquipment) : 0} value={loanQty} onChange={e => setLoanQty(e.target.value)} /></div><Button size="sm" onClick={handleAddItem} disabled={!selectedEquipmentId || selectedMeeting.status !== "em_uso"}>Emprestar</Button>
                   </div>
                 </div>
 
@@ -546,8 +567,11 @@ const ReuniaoAdmin = () => {
                   <h4 className="text-sm font-semibold text-foreground">Equipamentos Registrados</h4>
                   <div className="space-y-1">
                     {selectedMeeting.admin_items.map(item => (
-                      <div key={item.id} className="flex items-center justify-between text-sm p-2 rounded bg-secondary/20">
+                      <div key={item.id} className="space-y-2 text-sm p-2 rounded bg-secondary/20">
                         <span className="text-foreground">{item.description} (x{item.quantity})</span>
+                        <Badge variant={item.returned_at ? "secondary" : "outline"}>{item.returned_at ? "Devolvido" : "Em Empréstimo"}</Badge>
+                        {item.loaned_at && <p className="text-xs text-muted-foreground">Emprestado: {new Date(item.loaned_at).toLocaleString("pt-BR")}{item.returned_at && ` • Devolvido: ${new Date(item.returned_at).toLocaleString("pt-BR")}`}</p>}
+                        {!item.returned_at && <div className="flex items-end gap-2"><div><Label htmlFor={`return-${item.id}`} className="text-xs">Quantidade a devolver</Label><Input id={`return-${item.id}`} className="w-24" type="number" min="1" max={item.quantity} step="1" value={returnQtyMap[item.id] ?? String(item.quantity)} onChange={e => setReturnQtyMap(previous => ({ ...previous, [item.id]: e.target.value }))} /></div><Button size="sm" onClick={() => handleReturnItem(item)}>Devolver</Button></div>}
                         {item.tombamento && <span className="text-xs text-muted-foreground">Tomb: {item.tombamento}</span>}
                       </div>
                     ))}
@@ -578,8 +602,8 @@ const ReuniaoAdmin = () => {
               </Popover>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Início</Label><Input type="time" value={editStartTime} onChange={(e) => setEditStartTime(e.target.value)} /></div>
-              <div className="space-y-2"><Label>Término</Label><Input type="time" value={editEndTime} onChange={(e) => setEditEndTime(e.target.value)} /></div>
+              <div className="space-y-2"><Label>Início</Label><Select value={editStartTime} onValueChange={setEditStartTime}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Array.from(new Set([...ADMIN_TIME_SLOTS, editStartTime])).filter(Boolean).sort().map(t => <SelectItem key={t} value={t} disabled={violatesMinAdvance(t, editDate)}>{t}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-2"><Label>Término</Label><Select value={editEndTime} onValueChange={setEditEndTime}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Array.from(new Set([...ADMIN_TIME_SLOTS, editEndTime])).filter(Boolean).sort().map(t => <SelectItem key={t} value={t} disabled={t <= editStartTime}>{t}</SelectItem>)}</SelectContent></Select></div>
             </div>
             <div className="space-y-2">
               <Label>Local</Label>
@@ -588,6 +612,7 @@ const ReuniaoAdmin = () => {
                 <SelectContent>{LOCATIONS.map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}</SelectContent>
               </Select>
             </div>
+            {isOutsideStandardHours(editStartTime, editEndTime) && <div className="space-y-2"><Label htmlFor="edit-justification">Justificativa para agendamento fora do horário padrão</Label><Textarea id="edit-justification" required value={editJustification} onChange={e => setEditJustification(e.target.value)} /></div>}
             <Button onClick={handleEditSave} className="w-full">Salvar Alterações</Button>
           </div>
         </DialogContent>
