@@ -533,11 +533,11 @@ const ReuniaoAdmin = () => {
                 <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Package className="w-4 h-4 text-primary" /> Cadastrar Equipamento Emprestado</h4>
                 
                 {/* Select from inventory */}
-                <div className="space-y-2">
-                  <Label className="text-xs">Selecionar do Inventário</Label>
-                  <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-end gap-2">
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <Label className="text-xs">Selecionar do Inventário</Label>
                     <Select value={selectedEquipmentId} onValueChange={setSelectedEquipmentId}>
-                      <SelectTrigger className="flex-1"><SelectValue placeholder="Selecione um equipamento cadastrado" /></SelectTrigger>
+                      <SelectTrigger className="w-full"><SelectValue placeholder="Selecione um equipamento cadastrado" /></SelectTrigger>
                       <SelectContent>
                         {inventoryEquipment.filter(e => getAvailableQty(e) > 0).map(eq => (
                           <SelectItem key={eq.id} value={eq.id}>
@@ -549,14 +549,18 @@ const ReuniaoAdmin = () => {
                         )}
                       </SelectContent>
                     </Select>
-                    <div className="w-20 shrink-0"><Label htmlFor="loan-quantity" className="text-xs">Quantidade</Label><Input id="loan-quantity" type="number" min="1" step="1" max={inventoryEquipment.find(e => e.id === selectedEquipmentId) ? getAvailableQty(inventoryEquipment.find(e => e.id === selectedEquipmentId) as InventoryEquipment) : 0} value={loanQty} onChange={e => setLoanQty(e.target.value)} /></div><Button size="sm" onClick={handleAddItem} disabled={!selectedEquipmentId || selectedMeeting.status !== "em_uso"}>Emprestar</Button>
                   </div>
+                  <div className="w-full sm:w-24 shrink-0 space-y-1">
+                    <Label htmlFor="loan-quantity" className="text-xs">Quantidade</Label>
+                    <Input id="loan-quantity" type="number" min="1" step="1" max={inventoryEquipment.find(e => e.id === selectedEquipmentId) ? getAvailableQty(inventoryEquipment.find(e => e.id === selectedEquipmentId) as InventoryEquipment) : 0} value={loanQty} onChange={e => setLoanQty(e.target.value)} />
+                  </div>
+                  <Button className="h-10 shrink-0 w-full sm:w-auto" onClick={handleAddItem} disabled={!selectedEquipmentId || selectedMeeting.status !== "em_uso"}>Emprestar</Button>
                 </div>
 
                 {/* Manual entry */}
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Ou cadastro manual:</Label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <div className="space-y-1"><Label className="text-xs">Descrição</Label><Input value={newItemDesc} onChange={e => setNewItemDesc(e.target.value)} placeholder="Ex: Notebook Dell" /></div>
                     <div className="space-y-1"><Label className="text-xs">Quantidade</Label><Input type="number" min="1" value={newItemQty} onChange={e => setNewItemQty(e.target.value)} /></div>
                     <div className="space-y-1"><Label className="text-xs">Tombamento</Label><Input value={newItemTomb} onChange={e => setNewItemTomb(e.target.value)} placeholder="Opcional" /></div>
