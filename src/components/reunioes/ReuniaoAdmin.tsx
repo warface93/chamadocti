@@ -18,7 +18,7 @@ import { format, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { ADMIN_TIME_SLOTS, canScheduleHours, violatesMinAdvance, MIN_ADVANCE_MESSAGE, isOutsideStandardHours, isPastTime, needsExceptionalJustification } from '@/lib/meetingTime';
+import { ADMIN_TIME_SLOTS, canScheduleHours, violatesMinAdvance, isPastTime, needsExceptionalJustification } from '@/lib/meetingTime';
 
 interface MeetingWithDetails {
   id: string;

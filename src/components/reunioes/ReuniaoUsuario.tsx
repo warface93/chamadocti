@@ -17,7 +17,7 @@ import { format, isAfter, parse, isToday, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { ADMIN_TIME_SLOTS, canScheduleHours, isOutsideStandardHours, isPastTime, needsExceptionalJustification, violatesMinAdvance, MIN_ADVANCE_MESSAGE } from '@/lib/meetingTime';
+import { ADMIN_TIME_SLOTS, canScheduleHours, isPastTime, needsExceptionalJustification, violatesMinAdvance, MIN_ADVANCE_MESSAGE } from '@/lib/meetingTime';
 
 const TIME_SLOTS = [
   '07:30', '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
