@@ -18,7 +18,7 @@ import { format, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { ADMIN_TIME_SLOTS, canScheduleHours, violatesMinAdvance, MIN_ADVANCE_MESSAGE, isOutsideStandardHours } from '@/lib/meetingTime';
+import { ADMIN_TIME_SLOTS, canScheduleHours, violatesMinAdvance, isPastTime, needsExceptionalJustification } from '@/lib/meetingTime';
 
 interface MeetingWithDetails {
   id: string;
@@ -335,8 +335,11 @@ const ReuniaoAdmin = () => {
     if (editStartTime >= editEndTime) {
       toast({ title: 'Horário de término deve ser após o início', variant: 'destructive' }); return;
     }
-    if (violatesMinAdvance(editStartTime, editDate)) {
-      toast({ title: MIN_ADVANCE_MESSAGE, variant: 'destructive' }); return;
+    if (isPastTime(editStartTime, editDate)) {
+      toast({ title: 'Não é possível selecionar um horário que já passou.', variant: 'destructive' }); return;
+    }
+    if (violatesMinAdvance(editStartTime, editDate) && !editJustification.trim()) {
+      toast({ title: 'Informe a justificativa para agendamento excepcional', variant: 'destructive' }); return;
     }
     if (!canScheduleHours(editStartTime, editEndTime, true, editJustification)) {
       toast({ title: 'Informe a justificativa para agendamento fora do horário padrão', variant: 'destructive' }); return;
@@ -489,7 +492,7 @@ const ReuniaoAdmin = () => {
                 {selectedMeeting.link_platform && <div><span className="text-muted-foreground">Plataforma:</span><p className="font-medium text-foreground">{selectedMeeting.link_platform.toUpperCase()}</p></div>}
               </div>
 
-              {selectedMeeting.off_hours_justification && <div><Label>Justificativa para agendamento fora do horário padrão</Label><p className="text-sm text-foreground whitespace-pre-wrap">{selectedMeeting.off_hours_justification}</p></div>}
+              {selectedMeeting.off_hours_justification && <div><Label>Justificativa para agendamento excepcional</Label><p className="text-sm text-foreground whitespace-pre-wrap">{selectedMeeting.off_hours_justification}</p></div>}
               {selectedMeeting.theme && (
                 <div><span className="text-sm text-muted-foreground">Tema:</span><p className="text-sm text-foreground p-2 rounded bg-primary/5 border border-primary/20 mt-1">{selectedMeeting.theme}</p></div>
               )}
@@ -530,11 +533,11 @@ const ReuniaoAdmin = () => {
                 <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Package className="w-4 h-4 text-primary" /> Cadastrar Equipamento Emprestado</h4>
                 
                 {/* Select from inventory */}
-                <div className="space-y-2">
-                  <Label className="text-xs">Selecionar do Inventário</Label>
-                  <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-end gap-2">
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <Label className="text-xs">Selecionar do Inventário</Label>
                     <Select value={selectedEquipmentId} onValueChange={setSelectedEquipmentId}>
-                      <SelectTrigger className="flex-1"><SelectValue placeholder="Selecione um equipamento cadastrado" /></SelectTrigger>
+                      <SelectTrigger className="w-full"><SelectValue placeholder="Selecione um equipamento cadastrado" /></SelectTrigger>
                       <SelectContent>
                         {inventoryEquipment.filter(e => getAvailableQty(e) > 0).map(eq => (
                           <SelectItem key={eq.id} value={eq.id}>
@@ -546,14 +549,18 @@ const ReuniaoAdmin = () => {
                         )}
                       </SelectContent>
                     </Select>
-                    <div className="w-20 shrink-0"><Label htmlFor="loan-quantity" className="text-xs">Quantidade</Label><Input id="loan-quantity" type="number" min="1" step="1" max={inventoryEquipment.find(e => e.id === selectedEquipmentId) ? getAvailableQty(inventoryEquipment.find(e => e.id === selectedEquipmentId) as InventoryEquipment) : 0} value={loanQty} onChange={e => setLoanQty(e.target.value)} /></div><Button size="sm" onClick={handleAddItem} disabled={!selectedEquipmentId || selectedMeeting.status !== "em_uso"}>Emprestar</Button>
                   </div>
+                  <div className="w-full sm:w-24 shrink-0 space-y-1">
+                    <Label htmlFor="loan-quantity" className="text-xs">Quantidade</Label>
+                    <Input id="loan-quantity" type="number" min="1" step="1" max={inventoryEquipment.find(e => e.id === selectedEquipmentId) ? getAvailableQty(inventoryEquipment.find(e => e.id === selectedEquipmentId) as InventoryEquipment) : 0} value={loanQty} onChange={e => setLoanQty(e.target.value)} />
+                  </div>
+                  <Button className="h-10 shrink-0 w-full sm:w-auto" onClick={handleAddItem} disabled={!selectedEquipmentId || selectedMeeting.status !== "em_uso"}>Emprestar</Button>
                 </div>
 
                 {/* Manual entry */}
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Ou cadastro manual:</Label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <div className="space-y-1"><Label className="text-xs">Descrição</Label><Input value={newItemDesc} onChange={e => setNewItemDesc(e.target.value)} placeholder="Ex: Notebook Dell" /></div>
                     <div className="space-y-1"><Label className="text-xs">Quantidade</Label><Input type="number" min="1" value={newItemQty} onChange={e => setNewItemQty(e.target.value)} /></div>
                     <div className="space-y-1"><Label className="text-xs">Tombamento</Label><Input value={newItemTomb} onChange={e => setNewItemTomb(e.target.value)} placeholder="Opcional" /></div>
@@ -602,7 +609,7 @@ const ReuniaoAdmin = () => {
               </Popover>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Início</Label><Select value={editStartTime} onValueChange={setEditStartTime}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Array.from(new Set([...ADMIN_TIME_SLOTS, editStartTime])).filter(Boolean).sort().map(t => <SelectItem key={t} value={t} disabled={violatesMinAdvance(t, editDate)}>{t}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-2"><Label>Início</Label><Select value={editStartTime} onValueChange={setEditStartTime}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Array.from(new Set([...ADMIN_TIME_SLOTS, editStartTime])).filter(Boolean).sort().map(t => <SelectItem key={t} value={t} disabled={isPastTime(t, editDate)}>{t}</SelectItem>)}</SelectContent></Select></div>
               <div className="space-y-2"><Label>Término</Label><Select value={editEndTime} onValueChange={setEditEndTime}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Array.from(new Set([...ADMIN_TIME_SLOTS, editEndTime])).filter(Boolean).sort().map(t => <SelectItem key={t} value={t} disabled={t <= editStartTime}>{t}</SelectItem>)}</SelectContent></Select></div>
             </div>
             <div className="space-y-2">
@@ -612,7 +619,7 @@ const ReuniaoAdmin = () => {
                 <SelectContent>{LOCATIONS.map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            {isOutsideStandardHours(editStartTime, editEndTime) && <div className="space-y-2"><Label htmlFor="edit-justification">Justificativa para agendamento fora do horário padrão</Label><Textarea id="edit-justification" required value={editJustification} onChange={e => setEditJustification(e.target.value)} /></div>}
+            {needsExceptionalJustification(editStartTime, editEndTime, editDate) && <div className="space-y-2"><Label htmlFor="edit-justification">Justificativa para agendamento excepcional <span className="text-destructive">*</span></Label><Textarea id="edit-justification" required value={editJustification} onChange={e => setEditJustification(e.target.value)} placeholder="Ex: Solicitação extraordinária da Diretoria, com necessidade de realização imediata." /></div>}
             <Button onClick={handleEditSave} className="w-full">Salvar Alterações</Button>
           </div>
         </DialogContent>
