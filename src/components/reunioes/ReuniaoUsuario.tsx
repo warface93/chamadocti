@@ -17,7 +17,7 @@ import { format, isAfter, parse, isToday, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { ADMIN_TIME_SLOTS, canScheduleHours, isOutsideStandardHours, violatesMinAdvance, MIN_ADVANCE_MESSAGE } from '@/lib/meetingTime';
+import { ADMIN_TIME_SLOTS, canScheduleHours, isOutsideStandardHours, isPastTime, needsExceptionalJustification, violatesMinAdvance, MIN_ADVANCE_MESSAGE } from '@/lib/meetingTime';
 
 const TIME_SLOTS = [
   '07:30', '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
@@ -101,6 +101,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
   const { user, isAdmin } = useAuth();
   const timeSlots = isAdmin ? ADMIN_TIME_SLOTS : TIME_SLOTS;
   const [justification, setJustification] = useState('');
+  const [editJustification, setEditJustification] = useState('');
   const { toast } = useToast();
   const [date, setDate] = useState<Date>();
   const [startTime, setStartTime] = useState('');
@@ -327,10 +328,23 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
       return;
     }
 
-    // Check minimum 10-minute advance (also covers past times/dates)
-    if (violatesMinAdvance(effectiveStart, date)) {
-      toast({ title: MIN_ADVANCE_MESSAGE, variant: 'destructive' });
+    // Horários passados são bloqueados para todos
+    if (isPastTime(effectiveStart, date)) {
+      toast({ title: 'Não é possível selecionar um horário que já passou.', variant: 'destructive' });
       return;
+    }
+
+    // Antecedência mínima de 10 minutos: usuários comuns são bloqueados;
+    // administradores podem agendar com justificativa (agendamento excepcional)
+    if (violatesMinAdvance(effectiveStart, date)) {
+      if (!isAdmin) {
+        toast({ title: MIN_ADVANCE_MESSAGE, variant: 'destructive' });
+        return;
+      }
+      if (!justification.trim()) {
+        toast({ title: 'Informe a justificativa para agendamento excepcional', variant: 'destructive' });
+        return;
+      }
     }
 
     // Only validate conflict for fixed locations
@@ -410,6 +424,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
     setEditStartTime(meeting.start_time);
     setEditEndTime(meeting.end_time);
     setEditLocation(meeting.location);
+    setEditJustification((meeting as any).off_hours_justification || '');
     setEditDialogOpen(true);
   };
 
@@ -427,8 +442,24 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
       return;
     }
 
+    if (isPastTime(editStartTime, editDate)) {
+      toast({ title: 'Não é possível selecionar um horário que já passou.', variant: 'destructive' });
+      return;
+    }
+
     if (violatesMinAdvance(editStartTime, editDate)) {
-      toast({ title: MIN_ADVANCE_MESSAGE, variant: 'destructive' });
+      if (!isAdmin) {
+        toast({ title: MIN_ADVANCE_MESSAGE, variant: 'destructive' });
+        return;
+      }
+      if (!editJustification.trim()) {
+        toast({ title: 'Informe a justificativa para agendamento excepcional', variant: 'destructive' });
+        return;
+      }
+    }
+
+    if (isAdmin && needsExceptionalJustification(editStartTime, editEndTime, editDate) && !editJustification.trim()) {
+      toast({ title: 'Informe a justificativa para agendamento excepcional', variant: 'destructive' });
       return;
     }
 
