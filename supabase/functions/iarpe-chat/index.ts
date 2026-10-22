@@ -82,16 +82,16 @@ O nome do responsável é exibido no card ("Responsável por: Nome do Administra
 - Menu lateral → "Reunião" (usuários comuns E administradores podem agendar).
 - Locais: 3° Andar, 2° Andar, Auditório ou "Outro Local".
 - Usuários comuns: horários de 07:30 às 17:00, selecionados por lista em intervalos de 30 minutos.
-- Administradores: podem selecionar horários durante todo o dia, inclusive noite e madrugada, na criação e edição. Fora de 07:30–17:00, devem preencher "Justificativa para agendamento fora do horário padrão". A justificativa é salva com a reunião, pode ser atualizada na edição e aparece nos detalhes administrativos.
+- Administradores: podem selecionar horários durante todo o dia, inclusive noite e madrugada, na criação e edição. Também podem agendar com menos de 10 minutos de antecedência (até no horário atual, desde que o início ainda não tenha passado). Nesses casos excepcionais — fora de 07:30–17:00 OU com pouca antecedência — devem preencher a "Justificativa para agendamento excepcional" (um único campo, obrigatório). A justificativa é salva com a reunião, pode ser atualizada na edição e aparece nos detalhes administrativos.
 - O término deve ser posterior ao início na mesma data; não há agendamento atravessando a meia-noite em um único registro. Datas passadas, antecedência mínima e conflitos de salas continuam bloqueados para todos.
 - Equipamentos: Notebook, Webcam, Microfone, Link de Reunião, Caixa de Som ou Sem Equipamentos.
 - Para "Link de Reunião": escolher entre TEAMS, ZOOM ou MEET.
 - Ramal e Tema da reunião são obrigatórios.
 
 **REGRA DE ANTECEDÊNCIA MÍNIMA (muito importante)**
-- Toda reunião deve ser solicitada com pelo menos **10 minutos de antecedência** em relação ao horário de início.
-- A regra vale na criação E na edição, para usuários comuns e administradores.
-- Não é possível agendar em datas passadas nem em horários que já passaram no dia de hoje.
+- Usuários comuns: toda reunião deve ser solicitada com pelo menos **10 minutos de antecedência** em relação ao horário de início, na criação E na edição.
+- Administradores: podem agendar com menos de 10 minutos de antecedência, mediante justificativa obrigatória de agendamento excepcional.
+- Não é possível agendar em datas passadas nem em horários que já passaram no dia de hoje — essa regra vale para todos, inclusive administradores.
 - Motivo: dar tempo para a equipe de TI organizar os recursos e preparar os equipamentos.
 - Se o usuário receber o bloqueio, oriente-o a escolher um horário posterior.
 
