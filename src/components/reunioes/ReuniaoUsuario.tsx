@@ -485,7 +485,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
 
     const { error } = await supabase
       .from('meetings')
-      .update({ meeting_date: format(editDate, 'yyyy-MM-dd'), start_time: editStartTime, end_time: editEndTime, location: editLocation })
+      .update({ meeting_date: format(editDate, 'yyyy-MM-dd'), start_time: editStartTime, end_time: editEndTime, location: editLocation, off_hours_justification: isAdmin ? editJustification.trim() || null : null } as any)
       .eq('id', editingMeeting.id);
 
     if (error) {
@@ -546,7 +546,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
                 <SelectContent>
                   {timeSlots.map(t => {
                     const taken = location && FIXED_LOCATIONS.includes(location) ? isTimeSlotTaken(t, location) : false;
-                    const blocked = violatesMinAdvance(t, date);
+                    const blocked = isAdmin ? isPastTime(t, date) : violatesMinAdvance(t, date);
                     return (
                       <SelectItem key={t} value={t} disabled={taken || blocked}>
                         <span className="flex items-center gap-2">
@@ -604,7 +604,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
             </div>
           </div>
 
-          {isAdmin && isOutsideStandardHours(startTime, endTime) && <div className="space-y-2"><Label htmlFor="create-justification">Justificativa para agendamento fora do horário padrão</Label><Textarea id="create-justification" required value={justification} onChange={e => setJustification(e.target.value)} /></div>}
+          {isAdmin && needsExceptionalJustification(getEffectiveTime(startTime, customStartTime), getEffectiveTime(endTime, customEndTime), date) && <div className="space-y-2"><Label htmlFor="create-justification">Justificativa para agendamento excepcional <span className="text-destructive">*</span></Label><Textarea id="create-justification" required value={justification} onChange={e => setJustification(e.target.value)} placeholder="Ex: Solicitação extraordinária da Diretoria, com necessidade de realização imediata." /></div>}
           {/* Theme */}
           <div className="space-y-2">
             <Label>Tema da Reunião <span className="text-destructive">*</span></Label>
@@ -872,7 +872,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
                     {timeSlots.map(t => {
-                      const blocked = violatesMinAdvance(t, editDate);
+                      const blocked = isAdmin ? isPastTime(t, editDate) : violatesMinAdvance(t, editDate);
                       const taken = isTimeSlotTaken(t, editLocation, editingMeeting?.id);
                       const disabled = blocked || taken;
                       return (
@@ -922,6 +922,12 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
                 </SelectContent>
               </Select>
             </div>
+            {isAdmin && needsExceptionalJustification(editStartTime, editEndTime, editDate) && (
+              <div className="space-y-2">
+                <Label htmlFor="edit-justification">Justificativa para agendamento excepcional <span className="text-destructive">*</span></Label>
+                <Textarea id="edit-justification" required value={editJustification} onChange={e => setEditJustification(e.target.value)} placeholder="Ex: Solicitação extraordinária da Diretoria, com necessidade de realização imediata." />
+              </div>
+            )}
             <Button onClick={handleEditSave} className="w-full">Salvar Alterações</Button>
           </div>
         </DialogContent>
