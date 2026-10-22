@@ -53,3 +53,43 @@ export function violatesMinAdvance(
   const minStart = new Date(now.getTime() + MIN_ADVANCE_MINUTES * 60_000);
   return slot < minStart;
 }
+
+/**
+ * Retorna true quando o horário de início já passou (data passada ou
+ * horário anterior ao atual no dia de hoje). Bloqueado para todos.
+ */
+export function isPastTime(
+  time: string,
+  date: Date | undefined,
+  now: Date = new Date()
+): boolean {
+  if (!date || !/^\d{2}:\d{2}$/.test(time)) return false;
+
+  const dayStart = new Date(date);
+  dayStart.setHours(0, 0, 0, 0);
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+
+  if (dayStart < todayStart) return true;
+  if (!isSameDay(date, now)) return false;
+
+  const [h, m] = time.split(':').map(Number);
+  const slot = new Date(now);
+  slot.setHours(h, m, 0, 0);
+  return slot < now;
+}
+
+/**
+ * Agendamento excepcional (exige justificativa do administrador):
+ * fora do horário padrão 07:30–17:00 OU com menos de 10 minutos de
+ * antecedência (mas ainda não passado).
+ */
+export function needsExceptionalJustification(
+  start: string,
+  end: string,
+  date: Date | undefined,
+  now: Date = new Date()
+): boolean {
+  if (isOutsideStandardHours(start, end)) return true;
+  return violatesMinAdvance(start, date, now) && !isPastTime(start, date, now);
+}
