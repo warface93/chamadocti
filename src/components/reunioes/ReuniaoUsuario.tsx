@@ -17,25 +17,13 @@ import { format, isAfter, parse, isToday, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { ADMIN_TIME_SLOTS, canScheduleHours, isPastTime, needsExceptionalJustification, violatesMinAdvance, MIN_ADVANCE_MESSAGE } from '@/lib/meetingTime';
+import { ADMIN_TIME_SLOTS, USER_TIME_SLOTS, canScheduleHours, isPastTime, needsExceptionalJustification, violatesMinAdvance, MIN_ADVANCE_MESSAGE } from '@/lib/meetingTime';
 
-const TIME_SLOTS = [
-  '07:30', '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
-  '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
-  '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00',
-];
+import { EQUIPMENT_OPTIONS, toggleEquipment, locationDescription } from '@/lib/meetingOptions';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog';
 
 const LOCATIONS = ['3° Andar', '2° Andar', 'Auditório', 'Outro Local'];
 const FIXED_LOCATIONS = ['3° Andar', '2° Andar', 'Auditório'];
-
-const EQUIPMENT_OPTIONS = [
-  { id: 'notebook', label: 'Notebook' },
-  { id: 'webcam', label: 'Webcam' },
-  { id: 'microfone', label: 'Microfone' },
-  { id: 'link_reuniao', label: 'Link de Reunião' },
-  { id: 'caixa_som', label: 'Caixa de Som' },
-  { id: 'sem_equipamentos', label: 'Sem Equipamentos' },
-];
 
 const LINK_PLATFORMS = [
   { id: 'teams', label: 'TEAMS' },
@@ -72,6 +60,8 @@ interface UserMeeting {
   equipment: string[];
   user_name?: string;
   theme?: string | null;
+  cancelled_at?: string | null;
+  cancelled_by_name?: string | null;
 }
 
 const isMeetingOverdue = (meeting: UserMeeting) => {
@@ -99,7 +89,7 @@ const isTimePassed = (time: string, selectedDate: Date | undefined) => {
 
 const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
   const { user, isAdmin } = useAuth();
-  const timeSlots = isAdmin ? ADMIN_TIME_SLOTS : TIME_SLOTS;
+  const timeSlots = isAdmin ? ADMIN_TIME_SLOTS : USER_TIME_SLOTS;
   const [justification, setJustification] = useState('');
   const [editJustification, setEditJustification] = useState('');
   const { toast } = useToast();
@@ -136,6 +126,10 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
   const [editStartTime, setEditStartTime] = useState('');
   const [editEndTime, setEditEndTime] = useState('');
   const [editLocation, setEditLocation] = useState('');
+  const [editOtherDescription, setEditOtherDescription] = useState('');
+  const [detailMeeting, setDetailMeeting] = useState<UserMeeting | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<UserMeeting | null>(null);
+  const [cancelling, setCancelling] = useState(false);
   const [editCalendarOpen, setEditCalendarOpen] = useState(false);
 
   useEffect(() => {
@@ -151,6 +145,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
         fetchAllActiveMeetings();
         fetchExistingMeetings();
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'meeting_equipment' }, () => { fetchMyMeetings(); fetchAllActiveMeetings(); })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
@@ -221,7 +216,8 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
       
       setMyMeetings(enriched.filter(m => m.status === 'em_uso'));
       setMyAwaiting(enriched.filter(m => m.status === 'finalizado'));
-      setMyHistory(enriched.filter(m => m.status === 'devolvido'));
+      setMyHistory(enriched.filter(m => m.status === 'devolvido' || m.status === 'cancelada'));
+      setDetailMeeting(previous => previous ? enriched.find(m => m.id === previous.id) || null : null);
     }
   };
 
@@ -255,23 +251,10 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
   };
 
   const handleEquipmentToggle = (equipmentId: string) => {
+    setSelectedEquipment(prev => toggleEquipment(prev, equipmentId));
     if (equipmentId === 'sem_equipamentos') {
-      if (selectedEquipment.includes('sem_equipamentos')) {
-        setSelectedEquipment([]);
-      } else {
-        setSelectedEquipment(['sem_equipamentos']);
-        setOtherDescription('');
-        setLinkPlatform('');
-        setLinkCreator('');
-      }
-      return;
+      setLinkPlatform(''); setLinkCreator('');
     }
-    setSelectedEquipment(prev => {
-      const filtered = prev.filter(e => e !== 'sem_equipamentos');
-      return filtered.includes(equipmentId)
-        ? filtered.filter(e => e !== equipmentId)
-        : [...filtered, equipmentId];
-    });
     if (equipmentId === 'link_reuniao' && selectedEquipment.includes('link_reuniao')) {
       setLinkPlatform('');
       setLinkCreator('');
@@ -363,6 +346,9 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
       return;
     }
 
+    if (location === 'Outro Local' && !locationDescription(location, otherDescription)) {
+      toast({ title: 'Descreva o local da reunião.', variant: 'destructive' }); return;
+    }
     setLoading(true);
     try {
       const { data: meeting, error } = await supabase.from('meetings').insert({
@@ -371,7 +357,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
         start_time: effectiveStart,
         end_time: effectiveEnd,
         location,
-        other_description: null,
+        other_description: locationDescription(location, otherDescription),
         ramal: ramal.trim(),
         link_platform: selectedEquipment.includes('link_reuniao') ? linkPlatform : null,
         link_creator: selectedEquipment.includes('link_reuniao') ? linkCreator : null,
@@ -418,12 +404,24 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
     }
   };
 
+  const handleCancel = async () => {
+    if (!cancelTarget || cancelling) return;
+    setCancelling(true);
+    const { error } = await supabase.rpc('cancel_meeting', { _meeting_id: cancelTarget.id });
+    setCancelling(false);
+    if (error) { toast({ title: 'Erro ao cancelar reunião', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Reunião cancelada. Equipamentos emprestados aguardam devolução.' });
+    setCancelTarget(null); setDetailMeeting(null);
+    fetchMyMeetings(); fetchAllActiveMeetings(); fetchExistingMeetings();
+  };
+
   const openEditDialog = (meeting: UserMeeting) => {
     setEditingMeeting(meeting);
     setEditDate(new Date(meeting.meeting_date + 'T00:00:00'));
     setEditStartTime(meeting.start_time);
     setEditEndTime(meeting.end_time);
     setEditLocation(meeting.location);
+    setEditOtherDescription(meeting.other_description || "");
     setEditJustification((meeting as any).off_hours_justification || '');
     setEditDialogOpen(true);
   };
@@ -433,7 +431,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
       toast({ title: 'Preencha todos os campos', variant: 'destructive' });
       return;
     }
-    if (!isTimeInRange(editStartTime) || !isTimeInRange(editEndTime)) {
+    if (!canScheduleHours(editStartTime, editEndTime, isAdmin, editJustification)) {
       toast({ title: 'Horário deve estar entre 07:30 e 17:00', variant: 'destructive' });
       return;
     }
@@ -463,6 +461,9 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
       return;
     }
 
+    if (editLocation === 'Outro Local' && !locationDescription(editLocation, editOtherDescription)) {
+      toast({ title: 'Descreva o local da reunião.', variant: 'destructive' }); return;
+    }
     if (FIXED_LOCATIONS.includes(editLocation)) {
       const dateStr = format(editDate, 'yyyy-MM-dd');
       const { data: otherMeetings } = await supabase
@@ -485,7 +486,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
 
     const { error } = await supabase
       .from('meetings')
-      .update({ meeting_date: format(editDate, 'yyyy-MM-dd'), start_time: editStartTime, end_time: editEndTime, location: editLocation, off_hours_justification: isAdmin ? editJustification.trim() || null : null } as any)
+      .update({ meeting_date: format(editDate, 'yyyy-MM-dd'), start_time: editStartTime, end_time: editEndTime, location: editLocation, other_description: locationDescription(editLocation, editOtherDescription), off_hours_justification: isAdmin ? editJustification.trim() || null : null } as any)
       .eq('id', editingMeeting.id);
 
     if (error) {
@@ -584,7 +585,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
 
             <div className="space-y-2">
               <Label>Local da Reunião</Label>
-              <Select value={location} onValueChange={setLocation}>
+              <Select value={location} onValueChange={value => { setLocation(value); if (value !== 'Outro Local') setOtherDescription(''); }}>
                 <SelectTrigger><SelectValue placeholder="Local" /></SelectTrigger>
                 <SelectContent>
                   {LOCATIONS.map(loc => {
@@ -604,6 +605,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
             </div>
           </div>
 
+          {location === 'Outro Local' && <div className="space-y-2"><Label htmlFor="other-location">Descreva o local da reunião <span className="text-destructive">*</span></Label><Textarea id="other-location" required value={otherDescription} onChange={e => setOtherDescription(e.target.value)} placeholder="Informe o endereço ou descreva onde a reunião será realizada..." /></div>}
           {isAdmin && needsExceptionalJustification(getEffectiveTime(startTime, customStartTime), getEffectiveTime(endTime, customEndTime), date) && <div className="space-y-2"><Label htmlFor="create-justification">Justificativa para agendamento excepcional <span className="text-destructive">*</span></Label><Textarea id="create-justification" required value={justification} onChange={e => setJustification(e.target.value)} placeholder="Ex: Solicitação extraordinária da Diretoria, com necessidade de realização imediata." /></div>}
           {/* Theme */}
           <div className="space-y-2">
@@ -679,14 +681,16 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
                           {overdue && <AlertTriangle className="w-4 h-4 text-warning animate-pulse" />}
                           {format(new Date(m.meeting_date + 'T00:00:00'), 'dd/MM/yyyy')}
                         </span>
-                        <Badge variant="default">Em Uso</Badge>
+                        <Badge variant="default">Reservado</Badge>
                       </div>
+                      {m.other_description && <p className="text-sm text-muted-foreground break-words">Local: {m.other_description}</p>}
                       {m.theme && <p className="text-xs text-primary font-medium">Tema: {m.theme}</p>}
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-white" /> {m.start_time} - {m.end_time}</span>
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-muted-foreground" /> {m.start_time} - {m.end_time}</span>
                         <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {m.location}</span>
                       </div>
                       {m.ramal && <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone className="w-3 h-3" /> Ramal: {m.ramal}</p>}
+                      {m.status === 'cancelada' && m.cancelled_at && <p className="text-xs text-muted-foreground">Cancelada em {new Date(m.cancelled_at).toLocaleString('pt-BR')} por {m.cancelled_by_name}</p>}
                       <div className="flex flex-wrap gap-1">
                         {m.equipment.map(eq => <Badge key={eq} variant="outline" className="text-xs">{getEquipmentLabel(eq)}</Badge>)}
                       </div>
@@ -696,7 +700,8 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
                         </p>
                       )}
                       {m.status === 'em_uso' && m.user_id === user?.id && (
-                        <div className="flex gap-2 pt-2 border-t border-border">
+                        <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                          <Button size="sm" variant="outline" onClick={() => setDetailMeeting(m)}>Detalhes</Button>
                           <Button size="sm" variant="outline" onClick={() => openEditDialog(m)}><Edit className="w-3 h-3 mr-1" /> Editar</Button>
                           <Button size="sm" variant="warning" onClick={() => handleFinalize(m.id)}><CheckCircle className="w-3 h-3 mr-1" /> Finalizar Reunião</Button>
                         </div>
@@ -735,8 +740,8 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
                     <Badge variant="secondary" className="bg-warning/20 text-warning">Aguardando Devolução</Badge>
                   </div>
                   {m.theme && <p className="text-xs text-primary font-medium">Tema: {m.theme}</p>}
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-white" /> {m.start_time} - {m.end_time}</span>
+                  <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-muted-foreground" /> {m.start_time} - {m.end_time}</span>
                     <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {m.location}</span>
                   </div>
                   <div className="flex flex-wrap gap-1">
@@ -781,13 +786,15 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
                     <CardContent className="p-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-foreground">{format(new Date(m.meeting_date + 'T00:00:00'), 'dd/MM/yyyy')}</span>
-                        <Badge variant="secondary">Devolvido</Badge>
+                        <Badge variant={m.status === 'cancelada' ? 'destructive' : 'secondary'}>{m.status === 'cancelada' ? 'Cancelada' : 'Devolvido'}</Badge>
                       </div>
+                      {m.other_description && <p className="text-sm text-muted-foreground break-words">Local: {m.other_description}</p>}
                       {m.theme && <p className="text-xs text-primary font-medium">Tema: {m.theme}</p>}
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-white" /> {m.start_time} - {m.end_time}</span>
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-muted-foreground" /> {m.start_time} - {m.end_time}</span>
                         <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {m.location}</span>
                       </div>
+                      {m.status === 'cancelada' && m.cancelled_at && <p className="text-xs text-muted-foreground">Cancelada em {new Date(m.cancelled_at).toLocaleString('pt-BR')} por {m.cancelled_by_name}</p>}
                       <div className="flex flex-wrap gap-1">
                         {m.equipment.map(eq => <Badge key={eq} variant="outline" className="text-xs">{getEquipmentLabel(eq)}</Badge>)}
                       </div>
@@ -827,11 +834,11 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
                         {overdue && <AlertTriangle className="w-4 h-4 text-warning animate-pulse" />}
                         {format(new Date(m.meeting_date + 'T00:00:00'), 'dd/MM/yyyy')}
                       </span>
-                      <Badge variant="default">Em Uso</Badge>
+                      <Badge variant="default">Reservado</Badge>
                     </div>
                     {m.theme && <p className="text-xs text-primary font-medium">Tema: {m.theme}</p>}
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-white" /> {m.start_time} - {m.end_time}</span>
+                    <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-muted-foreground" /> {m.start_time} - {m.end_time}</span>
                       <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {m.location}</span>
                     </div>
                     {m.user_name && <p className="text-xs text-muted-foreground flex items-center gap-1"><User className="w-3 h-3" /> Solicitante: <span className="text-foreground font-medium">{m.user_name}</span></p>}
@@ -847,9 +854,37 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
         )}
       </div>
 
+      <Dialog open={!!detailMeeting} onOpenChange={open => { if (!open) setDetailMeeting(null); }}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Detalhes da Reunião</DialogTitle></DialogHeader>
+          {detailMeeting && <div className="space-y-4 text-sm">
+            <Badge>{detailMeeting.status === 'em_uso' ? 'Reservado' : detailMeeting.status === 'cancelada' ? 'Cancelada' : detailMeeting.status === 'finalizado' ? 'Aguardando Devolução' : 'Devolvido'}</Badge>
+            <p>Tema: {detailMeeting.theme}</p>
+            <p>Data: {format(new Date(detailMeeting.meeting_date + 'T00:00:00'), 'dd/MM/yyyy')}</p>
+            <p>Horário: {detailMeeting.start_time} - {detailMeeting.end_time}</p>
+            <p>Local: {detailMeeting.location}</p>
+            {detailMeeting.other_description && <p className="whitespace-pre-wrap break-words">Descreva o local da reunião: {detailMeeting.other_description}</p>}
+            <p>Ramal: {detailMeeting.ramal}</p>
+            <p>Equipamentos: {detailMeeting.equipment.map(getEquipmentLabel).join(', ') || 'Sem Equipamentos'}</p>
+            {detailMeeting.cancelled_at && <p>Cancelada em {new Date(detailMeeting.cancelled_at).toLocaleString('pt-BR')} por {detailMeeting.cancelled_by_name}</p>}
+            {detailMeeting.status === 'em_uso' && <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+              <Button variant="outline" onClick={() => { openEditDialog(detailMeeting); setDetailMeeting(null); }}>Editar Reunião</Button>
+              <Button variant="warning" onClick={() => { handleFinalize(detailMeeting.id); setDetailMeeting(null); }}>Finalizar Reunião</Button>
+              <Button variant="destructive" onClick={() => setCancelTarget(detailMeeting)}>Cancelar Reunião</Button>
+            </div>}
+          </div>}
+        </DialogContent>
+      </Dialog>
+      <AlertDialog open={!!cancelTarget} onOpenChange={open => { if (!open && !cancelling) setCancelTarget(null); }}>
+        <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
+          <AlertDialogHeader><AlertDialogTitle>Cancelar Reunião</AlertDialogTitle><AlertDialogDescription>Deseja realmente cancelar esta reunião? Essa ação não poderá ser desfeita. Equipamentos já emprestados permanecem pendentes até a devolução ser registrada pelo administrador.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel disabled={cancelling}>Voltar</AlertDialogCancel><Button variant="destructive" disabled={cancelling} onClick={handleCancel}>{cancelling ? 'Cancelando...' : 'Confirmar cancelamento'}</Button></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Editar Reunião</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -905,7 +940,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
             </div>
             <div className="space-y-2">
               <Label>Local</Label>
-              <Select value={editLocation} onValueChange={setEditLocation}>
+              <Select value={editLocation} onValueChange={value => { setEditLocation(value); if (value !== 'Outro Local') setEditOtherDescription(''); }}>
                 <SelectTrigger><SelectValue placeholder="Local" /></SelectTrigger>
                 <SelectContent>
                   {LOCATIONS.map(loc => {
@@ -922,6 +957,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
                 </SelectContent>
               </Select>
             </div>
+            {editLocation === 'Outro Local' && <div className="space-y-2"><Label htmlFor="edit-other-location">Descreva o local da reunião <span className="text-destructive">*</span></Label><Textarea id="edit-other-location" required value={editOtherDescription} onChange={e => setEditOtherDescription(e.target.value)} placeholder="Informe o endereço ou descreva onde a reunião será realizada..." /></div>}
             {isAdmin && needsExceptionalJustification(editStartTime, editEndTime, editDate) && (
               <div className="space-y-2">
                 <Label htmlFor="edit-justification">Justificativa para agendamento excepcional <span className="text-destructive">*</span></Label>
