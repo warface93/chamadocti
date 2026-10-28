@@ -18,6 +18,7 @@ import { format, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { locationDescription } from '@/lib/meetingOptions';
 import { ADMIN_TIME_SLOTS, canScheduleHours, violatesMinAdvance, isPastTime, needsExceptionalJustification } from '@/lib/meetingTime';
 
 interface MeetingWithDetails {
@@ -38,6 +39,8 @@ interface MeetingWithDetails {
   admin_items: AdminItem[];
   theme?: string | null;
   off_hours_justification?: string | null;
+  cancelled_at?: string | null;
+  cancelled_by_name?: string | null;
 }
 
 interface AdminItem {
@@ -122,6 +125,7 @@ const ReuniaoAdmin = () => {
   const [editStartTime, setEditStartTime] = useState('');
   const [editEndTime, setEditEndTime] = useState('');
   const [editLocation, setEditLocation] = useState('');
+  const [editOtherDescription, setEditOtherDescription] = useState('');
   const [editCalendarOpen, setEditCalendarOpen] = useState(false);
   const [editJustification, setEditJustification] = useState('');
 
@@ -199,6 +203,7 @@ const ReuniaoAdmin = () => {
   };
 
   const filteredMeetings = meetings.filter(m => {
+    if (filter === 'cancelada' && m.status !== 'cancelada') return false;
     if (filter === 'em_uso' && m.status !== 'em_uso') return false;
     if (filter === 'devolvido' && m.status !== 'devolvido') return false;
     if (filter === 'finalizado' && m.status !== 'finalizado') return false;
@@ -325,6 +330,7 @@ const ReuniaoAdmin = () => {
     setEditDate(new Date(meeting.meeting_date + 'T00:00:00'));
     setEditStartTime(meeting.start_time); setEditEndTime(meeting.end_time); setEditLocation(meeting.location);
     setEditJustification(meeting.off_hours_justification || '');
+    setEditOtherDescription(meeting.other_description || '');
     setEditDialogOpen(true);
   };
 
@@ -344,6 +350,7 @@ const ReuniaoAdmin = () => {
     if (!canScheduleHours(editStartTime, editEndTime, true, editJustification)) {
       toast({ title: 'Informe a justificativa para agendamento fora do horário padrão', variant: 'destructive' }); return;
     }
+    if (editLocation === 'Outro Local' && !locationDescription(editLocation, editOtherDescription)) { toast({ title: 'Descreva o local da reunião.', variant: 'destructive' }); return; }
     const dateStr = format(editDate, 'yyyy-MM-dd');
     const FIXED = ['3° Andar', '2° Andar', 'Auditório'];
     if (FIXED.includes(editLocation)) {
@@ -352,7 +359,7 @@ const ReuniaoAdmin = () => {
         ((editStartTime >= m.start_time && editStartTime < m.end_time) || (editEndTime > m.start_time && editEndTime <= m.end_time) || (editStartTime <= m.start_time && editEndTime >= m.end_time)));
       if (conflict) { toast({ title: 'Horário/local indisponível', variant: 'destructive' }); return; }
     }
-    const { error } = await supabase.from('meetings').update({ meeting_date: dateStr, start_time: editStartTime, end_time: editEndTime, location: editLocation, off_hours_justification: editJustification.trim() || null }).eq('id', editingMeeting.id);
+    const { error } = await supabase.from('meetings').update({ meeting_date: dateStr, start_time: editStartTime, end_time: editEndTime, location: editLocation, other_description: locationDescription(editLocation, editOtherDescription), off_hours_justification: editJustification.trim() || null }).eq('id', editingMeeting.id);
     if (error) { toast({ title: 'Erro ao editar reunião', variant: 'destructive' }); }
     else { toast({ title: 'Reunião editada com sucesso!' }); setEditDialogOpen(false); setEditingMeeting(null); fetchMeetings(); }
   };
@@ -374,9 +381,10 @@ const ReuniaoAdmin = () => {
           <Filter className="w-4 h-4 text-muted-foreground" />
           {[
             { value: 'todas', label: 'Todas Reuniões' },
-            { value: 'em_uso', label: 'Em Uso' },
+            { value: 'em_uso', label: 'Reservado' },
             { value: 'finalizado', label: 'Finalizadas' },
             { value: 'devolvido', label: 'Devolvido' },
+            { value: 'cancelada', label: 'Canceladas' },
           ].map(f => (
             <Button key={f.value} variant={filter === f.value ? 'default' : 'outline'} size="sm" onClick={() => { setFilter(f.value); setCurrentPage(1); }}>
               {f.label}
@@ -430,12 +438,12 @@ const ReuniaoAdmin = () => {
                         {format(new Date(m.meeting_date + 'T00:00:00'), 'dd/MM/yyyy')}
                       </span>
                       <Badge variant={isFinalized ? 'default' : m.status === 'em_uso' ? 'default' : 'secondary'} className={isFinalized ? 'bg-primary' : ''}>
-                        {isFinalized ? 'Finalizada' : m.status === 'em_uso' ? 'Em Uso' : 'Devolvido'}
+                        {isFinalized ? 'Finalizada' : m.status === 'em_uso' ? 'Reservado' : m.status === 'cancelada' ? 'Cancelada' : 'Devolvido'}
                       </Badge>
                     </div>
                     {m.theme && <p className="text-xs text-primary font-medium truncate">Tema: {m.theme}</p>}
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-white" /> {m.start_time} - {m.end_time}</span>
+                    <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-muted-foreground" /> {m.start_time} - {m.end_time}</span>
                       <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {m.location}</span>
                     </div>
                     <div className="flex items-center gap-1 text-sm text-muted-foreground"><User className="w-3 h-3" /><span>{m.user_name}</span></div>
@@ -508,23 +516,25 @@ const ReuniaoAdmin = () => {
                 </div>
                 {selectedMeeting.other_description && (
                   <div className="mt-2">
-                    <Badge variant="outline" className="border-primary/50 text-primary">Sem Equipamentos</Badge>
+                    <Label>Descreva o local da reunião</Label>
                     <p className="text-sm text-foreground mt-1 p-2 rounded bg-primary/5 border border-primary/20">{selectedMeeting.other_description}</p>
                   </div>
                 )}
               </div>
 
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30">
+              {selectedMeeting.cancelled_at && <p className="text-sm text-muted-foreground">Cancelada em {new Date(selectedMeeting.cancelled_at).toLocaleString('pt-BR')} por {selectedMeeting.cancelled_by_name}. Equipamentos pendentes devem ser devolvidos abaixo.</p>}
+              <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg bg-secondary/30">
                 <Label className="text-sm">Status:</Label>
-                <Select value={selectedMeeting.status} onValueChange={(v) => setSelectedMeeting(prev => prev ? { ...prev, status: v } : null)}>
+                <Select disabled={selectedMeeting.status === 'cancelada'} value={selectedMeeting.status} onValueChange={(v) => setSelectedMeeting(prev => prev ? { ...prev, status: v } : null)}>
                   <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="em_uso">Em Uso</SelectItem>
+                    <SelectItem value="em_uso">Reservado</SelectItem>
                     <SelectItem value="finalizado">Finalizada</SelectItem>
                     <SelectItem value="devolvido">Devolvido</SelectItem>
+                    {selectedMeeting.status === 'cancelada' && <SelectItem value="cancelada">Cancelada</SelectItem>}
                   </SelectContent>
                 </Select>
-                <Button size="sm" disabled={savingStatus} onClick={() => handleStatusChange(selectedMeeting.id, selectedMeeting.status)}>
+                <Button size="sm" disabled={savingStatus || selectedMeeting.status === 'cancelada'} onClick={() => handleStatusChange(selectedMeeting.id, selectedMeeting.status)}>
                   {savingStatus ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />} Salvar
                 </Button>
               </div>
@@ -565,7 +575,7 @@ const ReuniaoAdmin = () => {
                     <div className="space-y-1"><Label className="text-xs">Quantidade</Label><Input type="number" min="1" value={newItemQty} onChange={e => setNewItemQty(e.target.value)} /></div>
                     <div className="space-y-1"><Label className="text-xs">Tombamento</Label><Input value={newItemTomb} onChange={e => setNewItemTomb(e.target.value)} placeholder="Opcional" /></div>
                   </div>
-                  <Button size="sm" onClick={handleAddItem} disabled={!newItemDesc.trim()}>Adicionar Manual</Button>
+                  <Button size="sm" onClick={handleAddItem} disabled={!newItemDesc.trim() || selectedMeeting.status !== 'em_uso'}>Adicionar Manual</Button>
                 </div>
               </div>
 
@@ -592,7 +602,7 @@ const ReuniaoAdmin = () => {
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Editar Reunião</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -614,11 +624,12 @@ const ReuniaoAdmin = () => {
             </div>
             <div className="space-y-2">
               <Label>Local</Label>
-              <Select value={editLocation} onValueChange={setEditLocation}>
+              <Select value={editLocation} onValueChange={value => { setEditLocation(value); if (value !== 'Outro Local') setEditOtherDescription(''); }}>
                 <SelectTrigger><SelectValue placeholder="Local" /></SelectTrigger>
                 <SelectContent>{LOCATIONS.map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}</SelectContent>
               </Select>
             </div>
+            {editLocation === 'Outro Local' && <div className="space-y-2"><Label htmlFor="admin-edit-other-location">Descreva o local da reunião <span className="text-destructive">*</span></Label><Textarea id="admin-edit-other-location" required value={editOtherDescription} onChange={e => setEditOtherDescription(e.target.value)} placeholder="Informe o endereço ou descreva onde a reunião será realizada..." /></div>}
             {needsExceptionalJustification(editStartTime, editEndTime, editDate) && <div className="space-y-2"><Label htmlFor="edit-justification">Justificativa para agendamento excepcional <span className="text-destructive">*</span></Label><Textarea id="edit-justification" required value={editJustification} onChange={e => setEditJustification(e.target.value)} placeholder="Ex: Solicitação extraordinária da Diretoria, com necessidade de realização imediata." /></div>}
             <Button onClick={handleEditSave} className="w-full">Salvar Alterações</Button>
           </div>

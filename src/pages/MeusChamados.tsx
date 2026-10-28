@@ -60,6 +60,7 @@ const MeusChamados = () => {
           t.title.toLowerCase().includes(term) ||
           (t.description?.toLowerCase().includes(term) ?? false) ||
           t.category.toLowerCase().includes(term) ||
+          (t.category === 'conta' && 'login/senha'.includes(term)) ||
           responsible.includes(term);
         return matchesStatus && matchesCategory && matchesSearch;
       })
@@ -126,7 +127,7 @@ const MeusChamados = () => {
               <SelectItem value="internet">Internet</SelectItem>
               <SelectItem value="computador">Computador</SelectItem>
               <SelectItem value="telefone">Telefone</SelectItem>
-              <SelectItem value="conta">Conta</SelectItem>
+              <SelectItem value="conta">Login/Senha</SelectItem>
               <SelectItem value="sistema">Sistema</SelectItem>
               <SelectItem value="outros">Outros</SelectItem>
             </SelectContent>

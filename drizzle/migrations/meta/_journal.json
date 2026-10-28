@@ -29,6 +29,13 @@
       "when": 1792671361654,
       "tag": "0003_admin_exceptional_meeting_scheduling",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793207738253,
+      "tag": "0004_meeting_cancellation_quarter_hour_and_location",
+      "breakpoints": true
     }
   ]
 }

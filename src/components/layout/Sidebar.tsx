@@ -29,14 +29,14 @@ const Sidebar = ({ onNavigate }: SidebarProps) => {
     { to: '/usuarios', icon: Users, label: 'Usuários' },
     { to: '/setores', icon: Building2, label: 'Setores' },
     { to: '/relatorios', icon: BarChart3, label: 'Relatórios' },
-    { to: '/reunioes', icon: CalendarDays, label: 'Reunião' },
+    { to: '/reunioes', icon: CalendarDays, label: 'Agendar Reunião' },
     { to: '/equipamentos', icon: Monitor, label: 'Equipamentos' },
   ];
 
   const userLinks = [
     { to: '/meus-chamados', icon: FileText, label: 'Meus Chamados' },
     { to: '/novo-chamado', icon: Plus, label: 'Novo Chamado' },
-    { to: '/reunioes', icon: CalendarDays, label: 'Reunião' },
+    { to: '/reunioes', icon: CalendarDays, label: 'Agendar Reunião' },
   ];
 
   const links = isAdmin ? adminLinks : userLinks;

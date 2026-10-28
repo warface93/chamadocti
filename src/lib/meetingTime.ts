@@ -6,13 +6,15 @@ export const MIN_ADVANCE_MESSAGE =
 export const STANDARD_START = '07:30';
 export const STANDARD_END = '17:00';
 
-export const ADMIN_TIME_SLOTS = Array.from({ length: 48 }, (_, index) =>
-  `${String(Math.floor(index / 2)).padStart(2, '0')}:${index % 2 ? '30' : '00'}`
+export const ADMIN_TIME_SLOTS = Array.from({ length: 96 }, (_, index) =>
+  `${String(Math.floor(index / 4)).padStart(2, '0')}:${String((index % 4) * 15).padStart(2, '0')}`
 );
+export const USER_TIME_SLOTS = ADMIN_TIME_SLOTS.filter(time => time >= STANDARD_START && time <= STANDARD_END);
 
 export function canScheduleHours(start: string, end: string, isAdmin: boolean, justification: string): boolean {
   const validTime = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
   if (!validTime.test(start) || !validTime.test(end) || end <= start) return false;
+  if (!isAdmin && (!USER_TIME_SLOTS.includes(start) || !USER_TIME_SLOTS.includes(end))) return false;
   return !isOutsideStandardHours(start, end) || (isAdmin && justification.trim().length > 0);
 }
 

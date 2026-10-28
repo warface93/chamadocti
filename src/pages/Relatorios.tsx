@@ -32,7 +32,7 @@ const RANKING_COLORS = [
 ];
 
 const CATEGORY_LABELS: Record<string, string> = {
-  internet: 'Internet', computador: 'Computador', telefone: 'Telefone', conta: 'Conta',
+  internet: 'Internet', computador: 'Computador', telefone: 'Telefone', conta: 'Login/Senha',
   sistema: 'Sistema', outros: 'Outros', software: 'Software', hardware: 'Hardware',
   network: 'Rede', other: 'Outro',
 };

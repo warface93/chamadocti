@@ -137,6 +137,9 @@ export type Database = {
       }
       meetings: {
         Row: {
+          cancelled_at: string | null
+          cancelled_by: string | null
+          cancelled_by_name: string | null
           created_at: string
           end_time: string
           id: string
@@ -154,6 +157,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          cancelled_by_name?: string | null
           created_at?: string
           end_time: string
           id?: string
@@ -171,6 +177,9 @@ export type Database = {
           user_id: string
         }
         Update: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          cancelled_by_name?: string | null
           created_at?: string
           end_time?: string
           id?: string
@@ -369,6 +378,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cancel_meeting: { Args: { _meeting_id: string }; Returns: undefined }
       check_has_users: { Args: never; Returns: boolean }
       equipment_loaned_qty: { Args: { _equipment_id: string }; Returns: number }
       get_email_by_username: { Args: { _username: string }; Returns: string }
