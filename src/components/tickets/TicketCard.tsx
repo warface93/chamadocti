@@ -38,7 +38,7 @@ const categoryLabels: Record<string, string> = {
   internet: 'Internet',
   computador: 'Computador',
   telefone: 'Telefone',
-  conta: 'Conta',
+  conta: 'Login/Senha',
   sistema: 'Sistema',
   outros: 'Outros',
 };

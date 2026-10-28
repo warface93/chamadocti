@@ -9,5 +9,5 @@ describe('horários administrativos e comuns na criação e edição', () => {
   it('impede justificativa vazia em horário excepcional', () => expect(canScheduleHours('01:00', '02:00', true, '  ')).toBe(false));
   it('impede término anterior ao início', () => expect(canScheduleHours('20:00', '19:00', true, 'Evento')).toBe(false));
   it('mantém o horário excepcional ao editar com justificativa preservada', () => expect(canScheduleHours('21:15', '22:15', true, 'Justificativa existente')).toBe(true));
-  it('disponibiliza meia-noite e 23:30 ao administrador', () => { expect(ADMIN_TIME_SLOTS[0]).toBe('00:00'); expect(ADMIN_TIME_SLOTS.at(-1)).toBe('23:30'); });
+  it('disponibiliza meia-noite e 23:45 ao administrador', () => { expect(ADMIN_TIME_SLOTS[0]).toBe('00:00'); expect(ADMIN_TIME_SLOTS.at(-1)).toBe('23:45'); });
 });

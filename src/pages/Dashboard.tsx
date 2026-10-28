@@ -139,7 +139,7 @@ const Dashboard = () => {
               <SelectItem value="internet">Internet</SelectItem>
               <SelectItem value="computador">Computador</SelectItem>
               <SelectItem value="telefone">Telefone</SelectItem>
-              <SelectItem value="conta">Conta</SelectItem>
+              <SelectItem value="conta">Login/Senha</SelectItem>
               <SelectItem value="sistema">Sistema</SelectItem>
               <SelectItem value="outros">Outros</SelectItem>
             </SelectContent>
