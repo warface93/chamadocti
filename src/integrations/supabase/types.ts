@@ -137,6 +137,7 @@ export type Database = {
       }
       meetings: {
         Row: {
+          cancel_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
           cancelled_by_name: string | null
@@ -157,6 +158,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
           cancelled_by_name?: string | null
@@ -177,6 +179,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
           cancelled_by_name?: string | null
@@ -271,6 +274,79 @@ export type Database = {
           },
         ]
       }
+      return_requests: {
+        Row: {
+          admin_id: string | null
+          admin_name: string | null
+          admin_note: string | null
+          created_at: string
+          equipment_id: string | null
+          id: string
+          item_id: string
+          meeting_id: string
+          quantity: number
+          reason: string
+          requested_by: string
+          requested_by_name: string | null
+          resolved_at: string | null
+          status: string
+        }
+        Insert: {
+          admin_id?: string | null
+          admin_name?: string | null
+          admin_note?: string | null
+          created_at?: string
+          equipment_id?: string | null
+          id?: string
+          item_id: string
+          meeting_id: string
+          quantity: number
+          reason: string
+          requested_by?: string
+          requested_by_name?: string | null
+          resolved_at?: string | null
+          status?: string
+        }
+        Update: {
+          admin_id?: string | null
+          admin_name?: string | null
+          admin_note?: string | null
+          created_at?: string
+          equipment_id?: string | null
+          id?: string
+          item_id?: string
+          meeting_id?: string
+          quantity?: number
+          reason?: string
+          requested_by?: string
+          requested_by_name?: string | null
+          resolved_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "return_requests_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "return_requests_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_admin_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "return_requests_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sectors: {
         Row: {
           active: boolean | null
@@ -295,6 +371,47 @@ export type Database = {
         }
         Relationships: []
       }
+      ticket_history: {
+        Row: {
+          action: string
+          actor_id: string
+          actor_name: string | null
+          created_at: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          ticket_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string
+          actor_name?: string | null
+          created_at?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          ticket_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          actor_name?: string | null
+          created_at?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_history_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tickets: {
         Row: {
           admin_last_read_at: string | null
@@ -307,6 +424,7 @@ export type Database = {
           id: string
           is_new: boolean | null
           rating: number | null
+          resolution_note: string | null
           status: string
           status_changed_at: string | null
           status_changed_by: string | null
@@ -326,6 +444,7 @@ export type Database = {
           id?: string
           is_new?: boolean | null
           rating?: number | null
+          resolution_note?: string | null
           status?: string
           status_changed_at?: string | null
           status_changed_by?: string | null
@@ -345,6 +464,7 @@ export type Database = {
           id?: string
           is_new?: boolean | null
           rating?: number | null
+          resolution_note?: string | null
           status?: string
           status_changed_at?: string | null
           status_changed_by?: string | null
@@ -378,7 +498,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      cancel_meeting: { Args: { _meeting_id: string }; Returns: undefined }
+      cancel_meeting:
+        | { Args: { _meeting_id: string }; Returns: undefined }
+        | {
+            Args: { _meeting_id: string; _reason?: string }
+            Returns: undefined
+          }
       check_has_users: { Args: never; Returns: boolean }
       equipment_loaned_qty: { Args: { _equipment_id: string }; Returns: number }
       get_email_by_username: { Args: { _username: string }; Returns: string }
