@@ -23,7 +23,7 @@ Estilo de resposta:
 **Abrir um chamado**
 - Menu lateral → "Novo Chamado" (disponível para usuários comuns E administradores).
 - Preencher: título, descrição, categoria e (opcional) anexo.
-- Categorias disponíveis: Internet, Computador, Telefone, Conta, Sistema, Outros (além de Software, Hardware, Rede).
+- Categorias disponíveis: Internet, Computador, Telefone, Login/Senha, Sistema, Outros (além de Software, Hardware, Rede).
 
 **Acompanhar chamados**
 - "Meus Chamados" (usuário comum) → mostra apenas os chamados do próprio usuário.
@@ -79,12 +79,12 @@ O nome do responsável é exibido no card ("Responsável por: Nome do Administra
 ============================================================
 
 **Agendar**
-- Menu lateral → "Reunião" (usuários comuns E administradores podem agendar).
-- Locais: 3° Andar, 2° Andar, Auditório ou "Outro Local".
-- Usuários comuns: horários de 07:30 às 17:00, selecionados por lista em intervalos de 30 minutos.
+- Menu lateral → "Agendar Reunião" (usuários comuns E administradores podem agendar).
+- Locais: 3° Andar, 2° Andar, Auditório ou "Outro Local". Ao escolher "Outro Local", é obrigatório descrever o local (ex.: sala, prédio); a descrição aparece nos detalhes e pode ser alterada na edição.
+- Usuários comuns: horários de 07:30 às 17:00, selecionados por lista em intervalos de 15 minutos (ex.: 07:30, 07:45, 08:00), tanto na criação quanto na edição.
 - Administradores: podem selecionar horários durante todo o dia, inclusive noite e madrugada, na criação e edição. Também podem agendar com menos de 10 minutos de antecedência (até no horário atual, desde que o início ainda não tenha passado). Nesses casos excepcionais — fora de 07:30–17:00 OU com pouca antecedência — devem preencher a "Justificativa para agendamento excepcional" (um único campo, obrigatório). A justificativa é salva com a reunião, pode ser atualizada na edição e aparece nos detalhes administrativos.
 - O término deve ser posterior ao início na mesma data; não há agendamento atravessando a meia-noite em um único registro. Datas passadas, antecedência mínima e conflitos de salas continuam bloqueados para todos.
-- Equipamentos: Notebook, Webcam, Microfone, Link de Reunião, Caixa de Som ou Sem Equipamentos.
+- Equipamentos: "Sem Equipamentos" (primeira opção), Notebook, Webcam, Microfone, Link de Reunião ou Caixa de Som. "Sem Equipamentos" é exclusiva: ao marcá-la, as demais são desmarcadas, e ao escolher um equipamento ela é desmarcada.
 - Para "Link de Reunião": escolher entre TEAMS, ZOOM ou MEET.
 - Ramal e Tema da reunião são obrigatórios.
 
@@ -104,6 +104,11 @@ O nome do responsável é exibido no card ("Responsável por: Nome do Administra
 - Ao finalizar uma reunião com equipamentos pendentes, ela fica "Finalizada", aguardando devolução. Finalizar não devolve automaticamente essas unidades.
 - O administrador registra devoluções parciais ou totais nos detalhes. Devolver parte mantém o restante emprestado e não finaliza uma reunião em uso. Quando todas as unidades de uma reunião já finalizada retornam, ela passa para "Devolvido".
 - Ao confirmar explicitamente o status "Devolvido", o administrador registra a devolução de todas as unidades ainda pendentes da reunião.
+
+**Cancelar**
+- Nos detalhes da reunião, botão "Cancelar Reunião" (criador ou administrador), com confirmação; a ação não pode ser desfeita.
+- O sistema registra quem cancelou e quando; a reunião vai para o histórico com o selo "Cancelada" e o horário/local é liberado.
+- Equipamentos já emprestados continuam pendentes até o administrador registrar a devolução.
 
 **Consultar**
 - Reuniões em aberto: lista padrão na tela.
