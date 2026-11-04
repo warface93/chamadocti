@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ADMIN_TIME_SLOTS, USER_TIME_SLOTS, canScheduleHours, isPastTime, needsExceptionalJustification, violatesMinAdvance, MIN_ADVANCE_MESSAGE } from '@/lib/meetingTime';
 
 import { EQUIPMENT_OPTIONS, toggleEquipment, locationDescription } from '@/lib/meetingOptions';
+import MeetingLoans from './MeetingLoans';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog';
 
 const LOCATIONS = ['3° Andar', '2° Andar', 'Auditório', 'Outro Local'];
@@ -130,6 +131,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
   const [detailMeeting, setDetailMeeting] = useState<UserMeeting | null>(null);
   const [cancelTarget, setCancelTarget] = useState<UserMeeting | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
   const [editCalendarOpen, setEditCalendarOpen] = useState(false);
 
   useEffect(() => {
@@ -406,12 +408,13 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
 
   const handleCancel = async () => {
     if (!cancelTarget || cancelling) return;
+    if (!cancelReason.trim()) { toast({ title: 'Informe o motivo do cancelamento.', variant: 'destructive' }); return; }
     setCancelling(true);
-    const { error } = await supabase.rpc('cancel_meeting', { _meeting_id: cancelTarget.id });
+    const { error } = await supabase.rpc('cancel_meeting', { _meeting_id: cancelTarget.id, _reason: cancelReason.trim() });
     setCancelling(false);
     if (error) { toast({ title: 'Erro ao cancelar reunião', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Reunião cancelada. Equipamentos emprestados aguardam devolução.' });
-    setCancelTarget(null); setDetailMeeting(null);
+    setCancelTarget(null); setCancelReason(''); setDetailMeeting(null);
     fetchMyMeetings(); fetchAllActiveMeetings(); fetchExistingMeetings();
   };
 
@@ -701,9 +704,9 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
                       )}
                       {m.status === 'em_uso' && m.user_id === user?.id && (
                         <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-                          <Button size="sm" variant="outline" onClick={() => setDetailMeeting(m)}>Detalhes</Button>
                           <Button size="sm" variant="outline" onClick={() => openEditDialog(m)}><Edit className="w-3 h-3 mr-1" /> Editar</Button>
                           <Button size="sm" variant="warning" onClick={() => handleFinalize(m.id)}><CheckCircle className="w-3 h-3 mr-1" /> Finalizar Reunião</Button>
+                          <Button size="sm" variant="destructive" onClick={() => setCancelTarget(m)}>Cancelar Reunião</Button>
                         </div>
                       )}
                     </CardContent>
@@ -867,6 +870,8 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
             <p>Ramal: {detailMeeting.ramal}</p>
             <p>Equipamentos: {detailMeeting.equipment.map(getEquipmentLabel).join(', ') || 'Sem Equipamentos'}</p>
             {detailMeeting.cancelled_at && <p>Cancelada em {new Date(detailMeeting.cancelled_at).toLocaleString('pt-BR')} por {detailMeeting.cancelled_by_name}</p>}
+            {(detailMeeting as any).cancel_reason && <p className="whitespace-pre-wrap break-words">Motivo do cancelamento: {(detailMeeting as any).cancel_reason}</p>}
+            {detailMeeting.user_id === user?.id && <MeetingLoans meetingId={detailMeeting.id} mode="user" />}
             {detailMeeting.status === 'em_uso' && <div className="flex flex-wrap gap-2 border-t border-border pt-4">
               <Button variant="outline" onClick={() => { openEditDialog(detailMeeting); setDetailMeeting(null); }}>Editar Reunião</Button>
               <Button variant="warning" onClick={() => { handleFinalize(detailMeeting.id); setDetailMeeting(null); }}>Finalizar Reunião</Button>
@@ -878,6 +883,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
       <AlertDialog open={!!cancelTarget} onOpenChange={open => { if (!open && !cancelling) setCancelTarget(null); }}>
         <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
           <AlertDialogHeader><AlertDialogTitle>Cancelar Reunião</AlertDialogTitle><AlertDialogDescription>Deseja realmente cancelar esta reunião? Essa ação não poderá ser desfeita. Equipamentos já emprestados permanecem pendentes até a devolução ser registrada pelo administrador.</AlertDialogDescription></AlertDialogHeader>
+          <div className="space-y-1"><Label htmlFor="cancel-reason">Motivo do cancelamento <span className="text-destructive">*</span></Label><Textarea id="cancel-reason" value={cancelReason} onChange={e => setCancelReason(e.target.value)} placeholder="Informe o motivo" /></div>
           <AlertDialogFooter><AlertDialogCancel disabled={cancelling}>Voltar</AlertDialogCancel><Button variant="destructive" disabled={cancelling} onClick={handleCancel}>{cancelling ? 'Cancelando...' : 'Confirmar cancelamento'}</Button></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
