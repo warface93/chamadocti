@@ -677,7 +677,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
               {myMeetingsPaginated.map(m => {
                 const overdue = isMeetingOverdue(m);
                 return (
-                  <Card key={m.id} className={cn('border-border transition-all', overdue ? 'bg-warning/10 border-warning/50' : 'bg-card glow-card')}>
+                  <Card key={m.id} onClick={() => setDetailMeeting(m)} className={cn('border-border transition-all cursor-pointer', overdue ? 'bg-warning/10 border-warning/50' : 'bg-card glow-card')}>
                     <CardContent className="p-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-foreground flex items-center gap-2">
@@ -703,7 +703,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
                         </p>
                       )}
                       {m.status === 'em_uso' && m.user_id === user?.id && (
-                        <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                        <div className="flex flex-wrap gap-2 pt-2 border-t border-border" onClick={e => e.stopPropagation()}>
                           <Button size="sm" variant="outline" onClick={() => openEditDialog(m)}><Edit className="w-3 h-3 mr-1" /> Editar</Button>
                           <Button size="sm" variant="warning" onClick={() => handleFinalize(m.id)}><CheckCircle className="w-3 h-3 mr-1" /> Finalizar Reunião</Button>
                           <Button size="sm" variant="destructive" onClick={() => setCancelTarget(m)}>Cancelar Reunião</Button>
@@ -736,7 +736,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {myAwaiting.map(m => (
-              <Card key={m.id} className="border-border bg-warning/5 border-warning/30">
+              <Card key={m.id} onClick={() => setDetailMeeting(m)} className="border-border bg-warning/5 border-warning/30 cursor-pointer">
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-foreground">{format(new Date(m.meeting_date + 'T00:00:00'), 'dd/MM/yyyy')}</span>
