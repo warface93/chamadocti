@@ -785,7 +785,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {paginatedHistory.map(m => (
-                  <Card key={m.id} className="border-border bg-muted/20 opacity-70">
+                  <Card key={m.id} onClick={() => setDetailMeeting(m)} className="cursor-pointer border-border bg-muted/20 opacity-70">
                     <CardContent className="p-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-foreground">{format(new Date(m.meeting_date + 'T00:00:00'), 'dd/MM/yyyy')}</span>
