@@ -18,6 +18,8 @@ import { format, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import MeetingLoans from './MeetingLoans';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog';
 import { locationDescription } from '@/lib/meetingOptions';
 import { ADMIN_TIME_SLOTS, canScheduleHours, violatesMinAdvance, isPastTime, needsExceptionalJustification } from '@/lib/meetingTime';
 
@@ -128,6 +130,9 @@ const ReuniaoAdmin = () => {
   const [editOtherDescription, setEditOtherDescription] = useState('');
   const [editCalendarOpen, setEditCalendarOpen] = useState(false);
   const [editJustification, setEditJustification] = useState('');
+  const [cancelTarget, setCancelTarget] = useState<MeetingWithDetails | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -138,6 +143,10 @@ const ReuniaoAdmin = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'meetings' }, () => { fetchMeetings(); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'meeting_equipment' }, () => { fetchMeetings(); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'meeting_admin_items' }, () => { fetchMeetings(); fetchInventory(); })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'return_requests' }, (payload: any) => {
+        toast({ title: 'Nova solicitação de devolução', description: `${payload.new?.requested_by_name || 'Usuário'} solicitou devolução de ${payload.new?.quantity} unidade(s).` });
+        fetchMeetings();
+      })
       .subscribe();
     const inventoryChannel = supabase
       .channel('equipment-inventory-admin-changes')
@@ -323,6 +332,18 @@ const ReuniaoAdmin = () => {
     }
   };
 
+  const handleCancel = async () => {
+    if (!cancelTarget || cancelling) return;
+    if (!cancelReason.trim()) { toast({ title: 'Informe o motivo do cancelamento.', variant: 'destructive' }); return; }
+    setCancelling(true);
+    const { error } = await supabase.rpc('cancel_meeting', { _meeting_id: cancelTarget.id, _reason: cancelReason.trim() });
+    setCancelling(false);
+    if (error) { toast({ title: 'Erro ao cancelar reunião', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Reunião cancelada. Equipamentos emprestados aguardam devolução.' });
+    setCancelTarget(null); setCancelReason(''); setDialogOpen(false);
+    fetchMeetings();
+  };
+
   const openDetail = (meeting: MeetingWithDetails) => { setSelectedMeeting(meeting); setDialogOpen(true); };
 
   const openEditDialog = (meeting: MeetingWithDetails) => {
@@ -457,6 +478,7 @@ const ReuniaoAdmin = () => {
                           <>
                             <Button size="sm" variant="outline" onClick={() => openEditDialog(m)}><Edit className="w-3 h-3 mr-1" /> Editar</Button>
                             <Button size="sm" variant="warning" onClick={() => handleFinalize(m.id)}><CheckCircle className="w-3 h-3 mr-1" /> Finalizar</Button>
+                            <Button size="sm" variant="destructive" onClick={() => setCancelTarget(m)}>Cancelar</Button>
                           </>
                         )}
                       </div>
@@ -523,6 +545,9 @@ const ReuniaoAdmin = () => {
               </div>
 
               {selectedMeeting.cancelled_at && <p className="text-sm text-muted-foreground">Cancelada em {new Date(selectedMeeting.cancelled_at).toLocaleString('pt-BR')} por {selectedMeeting.cancelled_by_name}. Equipamentos pendentes devem ser devolvidos abaixo.</p>}
+              {(selectedMeeting as any).cancel_reason && <p className="text-sm text-muted-foreground whitespace-pre-wrap">Motivo do cancelamento: {(selectedMeeting as any).cancel_reason}</p>}
+              {selectedMeeting.status === 'em_uso' && <Button variant="destructive" size="sm" onClick={() => setCancelTarget(selectedMeeting)}>Cancelar Reunião</Button>}
+              <MeetingLoans meetingId={selectedMeeting.id} mode="admin" onChanged={() => { fetchMeetings(); fetchInventory(); }} />
               <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg bg-secondary/30">
                 <Label className="text-sm">Status:</Label>
                 <Select disabled={selectedMeeting.status === 'cancelada'} value={selectedMeeting.status} onValueChange={(v) => setSelectedMeeting(prev => prev ? { ...prev, status: v } : null)}>
@@ -599,6 +624,14 @@ const ReuniaoAdmin = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!cancelTarget} onOpenChange={open => { if (!open && !cancelling) setCancelTarget(null); }}>
+        <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
+          <AlertDialogHeader><AlertDialogTitle>Cancelar Reunião</AlertDialogTitle><AlertDialogDescription>Deseja realmente cancelar esta reunião? Essa ação não poderá ser desfeita. Equipamentos emprestados permanecem pendentes até a devolução ser registrada.</AlertDialogDescription></AlertDialogHeader>
+          <div className="space-y-1"><Label htmlFor="admin-cancel-reason">Motivo do cancelamento <span className="text-destructive">*</span></Label><Textarea id="admin-cancel-reason" value={cancelReason} onChange={e => setCancelReason(e.target.value)} placeholder="Informe o motivo" /></div>
+          <AlertDialogFooter><AlertDialogCancel disabled={cancelling}>Voltar</AlertDialogCancel><Button variant="destructive" disabled={cancelling} onClick={handleCancel}>{cancelling ? 'Cancelando...' : 'Confirmar cancelamento'}</Button></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
