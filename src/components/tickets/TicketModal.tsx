@@ -3,19 +3,21 @@ import { Ticket, User, TicketStatus } from '@/types';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Star, Save, Paperclip, UserCheck, ArrowDown, Trash2 } from 'lucide-react';
+import { Send, Star, Save, Paperclip, UserCheck, ArrowDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { markTicketSeen } from '@/hooks/useTicketUnread';
+import { Input } from '@/components/ui/input';
+import { diffTicket, TICKET_CATEGORY_OPTIONS, categoryLabel } from '@/lib/ticketHistory';
+import { Pencil, History } from 'lucide-react';
 
 interface TicketModalProps {
   ticket: Ticket;
@@ -40,7 +42,7 @@ const statusStyles = {
 };
 
 const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
-  const { updateTicket, deleteTicket, messages, addMessage, users, refetchMessages } = useData();
+  const { updateTicket, messages, addMessage, users, refetchMessages } = useData();
   const { user: currentUser, isAdmin } = useAuth();
   const [newMessage, setNewMessage] = useState('');
   const [rating, setRating] = useState(ticket.rating || 0);
@@ -48,13 +50,65 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
   const [isSending, setIsSending] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<TicketStatus>(ticket.status);
   const [isSavingStatus, setIsSavingStatus] = useState(false);
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>(ticket.category);
+  const [resolutionNote, setResolutionNote] = useState((ticket as any).resolution_note || '');
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(ticket.title);
+  const [editDescription, setEditDescription] = useState(ticket.description || '');
+  const [editFile, setEditFile] = useState<File | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [history, setHistory] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [hasNewMessages, setHasNewMessages] = useState(false);
 
-  const hasStatusChanged = selectedStatus !== ticket.status;
+  const hasStatusChanged = selectedStatus !== ticket.status || selectedCategory !== ticket.category;
+
+  const loadHistory = useCallback(async () => {
+    const { data } = await supabase.from('ticket_history').select('*').eq('ticket_id', ticket.id).order('created_at', { ascending: false });
+    setHistory(data || []);
+  }, [ticket.id]);
+
+  useEffect(() => {
+    loadHistory();
+    const ch = supabase.channel(`ticket-history-${ticket.id}-${Math.random().toString(36).slice(2)}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_history', filter: `ticket_id=eq.${ticket.id}` }, loadHistory)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [ticket.id, loadHistory]);
+
+  const recordHistory = async (before: Record<string, any>, after: Record<string, any>) => {
+    if (!currentUser) return;
+    const entries = diffTicket(before, after).map(e => ({ ...e, ticket_id: ticket.id, actor_id: currentUser.id, actor_name: currentUser.name }));
+    if (entries.length) await supabase.from('ticket_history').insert(entries);
+  };
+
+  const isOwner = currentUser?.id === ticket.user_id;
+  const canEdit = isOwner && ticket.status !== 'resolved';
+
+  const handleSaveEdit = async () => {
+    if (!currentUser || !editTitle.trim()) { toast.error('Informe o título'); return; }
+    setSavingEdit(true);
+    try {
+      const after: Record<string, any> = { title: editTitle.trim(), description: editDescription.trim() };
+      if (editFile) {
+        const ext = editFile.name.split('.').pop();
+        const path = `${currentUser.id}/${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage.from('ticket-attachments').upload(path, editFile);
+        if (upErr) throw upErr;
+        after.attachment_url = supabase.storage.from('ticket-attachments').getPublicUrl(path).data.publicUrl;
+      }
+      const { error } = await supabase.from('tickets').update({ ...after, updated_at: new Date().toISOString() }).eq('id', ticket.id);
+      if (error) throw error;
+      await recordHistory(ticket as any, after);
+      toast.success('Chamado atualizado!');
+      setEditing(false); setEditFile(null);
+    } catch {
+      toast.error('Erro ao atualizar chamado');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
 
   // Auto-assign admin on first interaction (open) and mark messages as seen
   useEffect(() => {
@@ -95,6 +149,7 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
   useEffect(() => {
     setSelectedStatus(ticket.status);
   }, [ticket.status]);
+  useEffect(() => { setSelectedCategory(ticket.category); }, [ticket.category]);
 
   const ticketMessages = messages.filter(m => m.ticket_id === ticket.id);
 
@@ -141,10 +196,14 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
     try {
       const updateData: any = {
         status: selectedStatus,
+        category: selectedCategory,
         updated_at: new Date().toISOString(),
         status_changed_by: currentUser.name,
         status_changed_at: new Date().toISOString(),
       };
+      if (selectedStatus === 'resolved' && selectedStatus !== ticket.status) {
+        updateData.resolution_note = resolutionNote.trim() || null;
+      }
       if (isAdmin) {
         updateData.assigned_admin_id = currentUser.id;
         updateData.assigned_admin_name = currentUser.name;
@@ -156,7 +215,8 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
         .eq('id', ticket.id);
 
       if (error) throw error;
-      toast.success('Status atualizado!');
+      await recordHistory(ticket as any, { status: selectedStatus, category: selectedCategory, ...(selectedStatus === 'resolved' ? { resolution_note: updateData.resolution_note ?? null } : {}) });
+      toast.success('Chamado atualizado!');
     } catch (error) {
       toast.error('Erro ao atualizar status');
     } finally {
@@ -192,20 +252,6 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
     }
   };
 
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    try {
-      await deleteTicket(ticket.id);
-      toast.success('Chamado excluído com sucesso!');
-      setConfirmDeleteOpen(false);
-      onClose();
-    } catch (error) {
-      toast.error('Erro ao excluir chamado');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
   const handleRating = async (value: number) => {
     try {
       setRating(value);
@@ -234,16 +280,9 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
             <Badge className={cn('text-xs', statusStyles[ticket.status])}>
               {statusLabels[ticket.status]}
             </Badge>
-            {isAdmin && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="ml-auto text-muted-foreground hover:text-destructive"
-                onClick={() => setConfirmDeleteOpen(true)}
-                title="Excluir chamado"
-              >
-                <Trash2 className="w-4 h-4" />
+            {canEdit && !editing && (
+              <Button type="button" variant="ghost" size="sm" className="ml-auto" onClick={() => setEditing(true)}>
+                <Pencil className="w-4 h-4 mr-1" /> Editar
               </Button>
             )}
           </DialogTitle>
@@ -253,6 +292,17 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
         </DialogHeader>
 
         <div className="space-y-4">
+          {editing && (
+            <div className="p-4 rounded-lg border border-primary/30 space-y-2">
+              <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} placeholder="Título" />
+              <Textarea value={editDescription} onChange={e => setEditDescription(e.target.value)} placeholder="Descrição" />
+              <Input type="file" onChange={e => setEditFile(e.target.files?.[0] || null)} />
+              <div className="flex gap-2">
+                <Button size="sm" variant="glow" disabled={savingEdit} onClick={handleSaveEdit}>{savingEdit ? 'Salvando...' : 'Salvar alterações'}</Button>
+                <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setEditTitle(ticket.title); setEditDescription(ticket.description || ''); }}>Cancelar</Button>
+              </div>
+            </div>
+          )}
           <div className="p-4 bg-secondary/30 rounded-lg">
             <p className="text-sm text-muted-foreground mb-2">Descrição</p>
             <p className="text-foreground">{ticket.description}</p>
@@ -307,7 +357,8 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
           )}
 
           {isAdmin && (
-            <div className="flex items-center gap-4">
+            <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-3">
               <span className="text-sm text-muted-foreground">Alterar Status:</span>
               <Select value={selectedStatus} onValueChange={(v) => setSelectedStatus(v as TicketStatus)}>
                 <SelectTrigger className="w-48 bg-secondary/50">
@@ -321,12 +372,29 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
                   <SelectItem value="pending">Pendente</SelectItem>
                 </SelectContent>
               </Select>
+              <span className="text-sm text-muted-foreground">Categoria:</span>
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="w-44 bg-secondary/50"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TICKET_CATEGORY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
               {hasStatusChanged && (
                 <Button variant="glow" size="sm" onClick={handleSaveStatus} disabled={isSavingStatus}>
                   <Save className="w-4 h-4 mr-1" />
                   {isSavingStatus ? 'Salvando...' : 'Salvar'}
                 </Button>
               )}
+            </div>
+            {selectedStatus === 'resolved' && ticket.status !== 'resolved' && (
+              <Textarea value={resolutionNote} onChange={e => setResolutionNote(e.target.value)} placeholder="Detalhes da resolução (opcional)" className="bg-secondary/50" />
+            )}
+            </div>
+          )}
+          {(ticket as any).resolution_note && (
+            <div className="p-3 rounded-lg bg-success/10 border border-success/30 text-sm">
+              <p className="text-xs text-muted-foreground mb-1">Detalhes da resolução</p>
+              <p className="text-foreground whitespace-pre-wrap">{(ticket as any).resolution_note}</p>
             </div>
           )}
 
@@ -373,6 +441,21 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
                 ))}
               </div>
             </div>
+          )}
+
+          {history.length > 0 && (
+            <details className="rounded-lg border border-border p-3">
+              <summary className="cursor-pointer text-sm font-medium text-foreground flex items-center gap-2"><History className="w-4 h-4 text-primary" /> Histórico de alterações ({history.length})</summary>
+              <ul className="mt-2 space-y-1 max-h-40 overflow-y-auto text-xs text-muted-foreground">
+                {history.map(h => (
+                  <li key={h.id}>
+                    <span className="text-foreground">{h.action}</span>
+                    {(h.old_value || h.new_value) && h.action !== 'Descrição editada' && <>: {h.old_value || '—'} → {h.new_value || '—'}</>}
+                    {' '}• {h.actor_name || 'Usuário'} • {format(new Date(h.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                  </li>
+                ))}
+              </ul>
+            </details>
           )}
 
           <div className="border-t border-border pt-4">
@@ -448,26 +531,6 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
         </div>
       </DialogContent>
 
-      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir chamado</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir o chamado "{ticket.title}"? Esta ação não pode ser desfeita e todo o histórico de mensagens será removido.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => { e.preventDefault(); handleDelete(); }}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting ? 'Excluindo...' : 'Excluir'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Dialog>
   );
 };
