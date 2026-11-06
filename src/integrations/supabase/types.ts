@@ -498,6 +498,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_meeting_equipment: {
+        Args: { _items: string[]; _meeting_id: string }
+        Returns: undefined
+      }
       cancel_meeting:
         | { Args: { _meeting_id: string }; Returns: undefined }
         | {
@@ -505,7 +509,12 @@ export type Database = {
             Returns: undefined
           }
       check_has_users: { Args: never; Returns: boolean }
+      confirm_return_request: {
+        Args: { _request_id: string }
+        Returns: undefined
+      }
       equipment_loaned_qty: { Args: { _equipment_id: string }; Returns: number }
+      equipment_type_available: { Args: { _option: string }; Returns: number }
       get_email_by_username: { Args: { _username: string }; Returns: string }
       get_meeting_user_names: {
         Args: never
