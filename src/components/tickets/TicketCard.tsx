@@ -106,13 +106,6 @@ const TicketCard = ({ ticket, user, onClick, isNewest }: TicketCardProps) => {
         </Badge>
       </div>
 
-      {assignedAdminName && (
-        <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-          <UserCheck className="w-3 h-3 text-primary" />
-          <span>Responsável por: <span className="text-foreground font-medium">{assignedAdminName}</span></span>
-        </div>
-      )}
-
       <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
         <span>{user?.name || 'Usuário'}</span>
         <div className="flex items-center gap-1">
