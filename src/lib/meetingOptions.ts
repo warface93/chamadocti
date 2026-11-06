@@ -16,3 +16,15 @@ export function toggleEquipment(selected: string[], id: string): string[] {
 export function locationDescription(location: string, description: string): string | null {
   return location === 'Outro Local' ? description.trim() || null : null;
 }
+/** Equipment ids that can be ADDED while editing: already linked items stay locked and are never removable. */
+export const ADDABLE_EQUIPMENT = ['notebook', 'webcam', 'microfone', 'caixa_som', 'link_reuniao'];
+
+export function mergeEditEquipment(linked: string[], added: string[]): string[] {
+  const extra = added.filter(id => ADDABLE_EQUIPMENT.includes(id) && !linked.includes(id));
+  return [...new Set(extra)];
+}
+
+export function canAddEquipment(id: string, linked: string[], available: number): boolean {
+  if (!ADDABLE_EQUIPMENT.includes(id) || linked.includes(id)) return false;
+  return id === 'link_reuniao' || available > 0;
+}
