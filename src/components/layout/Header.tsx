@@ -1,4 +1,6 @@
-import { Bell, Moon, Sun, Menu } from 'lucide-react';
+import { Bell, Moon, Sun, Menu, PackageOpen } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { usePendingReturns } from '@/hooks/usePendingReturns';
 import { useData } from '@/contexts/DataContext';
 import { cn } from '@/lib/utils';
 import {
@@ -19,7 +21,10 @@ const Header = ({ title, onMenuToggle, showMenuButton }: HeaderProps) => {
   const { tickets, getNewTicketsCount, getCriticalTicketsCount, markTicketAsRead } = useData();
   const { isAdmin } = useAuth();
   const { theme, toggleTheme } = useThemeToggle();
-  const newCount = getNewTicketsCount();
+  const navigate = useNavigate();
+  const pendingReturns = usePendingReturns();
+  const ticketCount = getNewTicketsCount();
+  const newCount = ticketCount + pendingReturns.length;
   const criticalCount = getCriticalTicketsCount();
   
   const newTickets = tickets.filter(t => t.is_new);
@@ -73,11 +78,25 @@ const Header = ({ title, onMenuToggle, showMenuButton }: HeaderProps) => {
               <div className="p-4 border-b border-border">
                 <h3 className="font-semibold text-foreground">Notificações</h3>
                 <p className="text-sm text-muted-foreground">
-                  {newCount} novo(s) chamado(s)
+                  {ticketCount} novo(s) chamado(s){pendingReturns.length > 0 && ` • ${pendingReturns.length} devolução(ões) pendente(s)`}
                 </p>
               </div>
               <div className="max-h-80 overflow-y-auto">
-                {newTickets.length === 0 ? (
+                {pendingReturns.map(r => (
+                  <button key={r.id} onClick={() => navigate(`/reunioes?reuniao=${r.meeting_id}`)}
+                    className="w-full p-4 text-left border-b border-border hover:bg-secondary/50 transition-colors bg-warning/10">
+                    <div className="flex items-start gap-3">
+                      <PackageOpen className="w-4 h-4 mt-0.5 text-warning shrink-0" />
+                      <div>
+                        <p className="font-medium text-foreground text-sm">Solicitação de devolução de equipamento</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          O usuário {r.requested_by_name || 'Usuário'} solicitou a devolução de {r.quantity > 1 ? `${r.quantity} un. de ` : 'um '}{r.equipment_label}{r.meeting_theme ? ` referente à reunião ${r.meeting_theme}` : ''}.
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+                {newTickets.length === 0 && pendingReturns.length === 0 ? (
                   <div className="p-4 text-center text-muted-foreground">
                     Nenhuma notificação
                   </div>
