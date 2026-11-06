@@ -21,6 +21,8 @@ import { ADMIN_TIME_SLOTS, USER_TIME_SLOTS, canScheduleHours, isPastTime, needsE
 
 import { EQUIPMENT_OPTIONS, toggleEquipment, locationDescription } from '@/lib/meetingOptions';
 import MeetingLoans from './MeetingLoans';
+import MeetingEditExtras from './MeetingEditExtras';
+import { mergeEditEquipment } from '@/lib/meetingOptions';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog';
 
 const LOCATIONS = ['3° Andar', '2° Andar', 'Auditório', 'Outro Local'];
@@ -93,6 +95,9 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
   const timeSlots = isAdmin ? ADMIN_TIME_SLOTS : USER_TIME_SLOTS;
   const [justification, setJustification] = useState('');
   const [editJustification, setEditJustification] = useState('');
+  const [editTheme, setEditTheme] = useState('');
+  const [editRamal, setEditRamal] = useState('');
+  const [editAdded, setEditAdded] = useState<string[]>([]);
   const { toast } = useToast();
   const [date, setDate] = useState<Date>();
   const [startTime, setStartTime] = useState('');
@@ -426,6 +431,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
     setEditLocation(meeting.location);
     setEditOtherDescription(meeting.other_description || "");
     setEditJustification((meeting as any).off_hours_justification || '');
+    setEditTheme(meeting.theme || ''); setEditRamal(meeting.ramal || ''); setEditAdded([]);
     setEditDialogOpen(true);
   };
 
@@ -489,11 +495,16 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
 
     const { error } = await supabase
       .from('meetings')
-      .update({ meeting_date: format(editDate, 'yyyy-MM-dd'), start_time: editStartTime, end_time: editEndTime, location: editLocation, other_description: locationDescription(editLocation, editOtherDescription), off_hours_justification: isAdmin ? editJustification.trim() || null : null } as any)
+      .update({ meeting_date: format(editDate, 'yyyy-MM-dd'), start_time: editStartTime, end_time: editEndTime, location: editLocation, theme: editTheme.trim() || null, ramal: editRamal.trim() || null, other_description: locationDescription(editLocation, editOtherDescription), off_hours_justification: isAdmin ? editJustification.trim() || null : null } as any)
       .eq('id', editingMeeting.id);
+    const newItems = mergeEditEquipment(editingMeeting.equipment, editAdded);
+    if (!error && newItems.length) {
+      const { error: eqError } = await supabase.rpc('add_meeting_equipment', { _meeting_id: editingMeeting.id, _items: newItems });
+      if (eqError) { toast({ title: 'Dados salvos, mas o equipamento não pôde ser acrescentado', description: eqError.message, variant: 'destructive' }); fetchExistingMeetings(); fetchMyMeetings(); fetchAllActiveMeetings(); return; }
+    }
 
     if (error) {
-      toast({ title: 'Erro ao editar reunião', variant: 'destructive' });
+      toast({ title: 'Erro ao editar reunião', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'Reunião editada com sucesso!' });
       setEditDialogOpen(false); setEditingMeeting(null);
@@ -970,6 +981,7 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
                 <Textarea id="edit-justification" required value={editJustification} onChange={e => setEditJustification(e.target.value)} placeholder="Ex: Solicitação extraordinária da Diretoria, com necessidade de realização imediata." />
               </div>
             )}
+            {editingMeeting && <MeetingEditExtras linked={editingMeeting.equipment} theme={editTheme} onTheme={setEditTheme} ramal={editRamal} onRamal={setEditRamal} added={editAdded} onAdded={setEditAdded} />}
             <Button onClick={handleEditSave} className="w-full">Salvar Alterações</Button>
           </div>
         </DialogContent>

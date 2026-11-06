@@ -19,6 +19,8 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import MeetingLoans from './MeetingLoans';
+import MeetingEditExtras from './MeetingEditExtras';
+import { mergeEditEquipment } from '@/lib/meetingOptions';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog';
 import { locationDescription } from '@/lib/meetingOptions';
 import { ADMIN_TIME_SLOTS, canScheduleHours, violatesMinAdvance, isPastTime, needsExceptionalJustification } from '@/lib/meetingTime';
@@ -130,6 +132,9 @@ const ReuniaoAdmin = () => {
   const [editOtherDescription, setEditOtherDescription] = useState('');
   const [editCalendarOpen, setEditCalendarOpen] = useState(false);
   const [editJustification, setEditJustification] = useState('');
+  const [editTheme, setEditTheme] = useState('');
+  const [editRamal, setEditRamal] = useState('');
+  const [editAdded, setEditAdded] = useState<string[]>([]);
   const [cancelTarget, setCancelTarget] = useState<MeetingWithDetails | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
@@ -352,6 +357,7 @@ const ReuniaoAdmin = () => {
     setEditStartTime(meeting.start_time); setEditEndTime(meeting.end_time); setEditLocation(meeting.location);
     setEditJustification(meeting.off_hours_justification || '');
     setEditOtherDescription(meeting.other_description || '');
+    setEditTheme(meeting.theme || ''); setEditRamal(meeting.ramal || ''); setEditAdded([]);
     setEditDialogOpen(true);
   };
 
@@ -380,8 +386,13 @@ const ReuniaoAdmin = () => {
         ((editStartTime >= m.start_time && editStartTime < m.end_time) || (editEndTime > m.start_time && editEndTime <= m.end_time) || (editStartTime <= m.start_time && editEndTime >= m.end_time)));
       if (conflict) { toast({ title: 'Horário/local indisponível', variant: 'destructive' }); return; }
     }
-    const { error } = await supabase.from('meetings').update({ meeting_date: dateStr, start_time: editStartTime, end_time: editEndTime, location: editLocation, other_description: locationDescription(editLocation, editOtherDescription), off_hours_justification: editJustification.trim() || null }).eq('id', editingMeeting.id);
-    if (error) { toast({ title: 'Erro ao editar reunião', variant: 'destructive' }); }
+    const { error } = await supabase.from('meetings').update({ meeting_date: dateStr, start_time: editStartTime, end_time: editEndTime, location: editLocation, theme: editTheme.trim() || null, ramal: editRamal.trim() || null, other_description: locationDescription(editLocation, editOtherDescription), off_hours_justification: editJustification.trim() || null }).eq('id', editingMeeting.id);
+    const newItems = mergeEditEquipment(editingMeeting.equipment, editAdded);
+    if (!error && newItems.length) {
+      const { error: eqError } = await supabase.rpc('add_meeting_equipment', { _meeting_id: editingMeeting.id, _items: newItems });
+      if (eqError) { toast({ title: 'Dados salvos, mas o equipamento não pôde ser acrescentado', description: eqError.message, variant: 'destructive' }); fetchMeetings(); return; }
+    }
+    if (error) { toast({ title: 'Erro ao editar reunião', description: error.message, variant: 'destructive' }); }
     else { toast({ title: 'Reunião editada com sucesso!' }); setEditDialogOpen(false); setEditingMeeting(null); fetchMeetings(); }
   };
 
@@ -664,6 +675,7 @@ const ReuniaoAdmin = () => {
             </div>
             {editLocation === 'Outro Local' && <div className="space-y-2"><Label htmlFor="admin-edit-other-location">Descreva o local da reunião <span className="text-destructive">*</span></Label><Textarea id="admin-edit-other-location" required value={editOtherDescription} onChange={e => setEditOtherDescription(e.target.value)} placeholder="Informe o endereço ou descreva onde a reunião será realizada..." /></div>}
             {needsExceptionalJustification(editStartTime, editEndTime, editDate) && <div className="space-y-2"><Label htmlFor="edit-justification">Justificativa para agendamento excepcional <span className="text-destructive">*</span></Label><Textarea id="edit-justification" required value={editJustification} onChange={e => setEditJustification(e.target.value)} placeholder="Ex: Solicitação extraordinária da Diretoria, com necessidade de realização imediata." /></div>}
+            {editingMeeting && <MeetingEditExtras linked={editingMeeting.equipment} theme={editTheme} onTheme={setEditTheme} ramal={editRamal} onRamal={setEditRamal} added={editAdded} onAdded={setEditAdded} />}
             <Button onClick={handleEditSave} className="w-full">Salvar Alterações</Button>
           </div>
         </DialogContent>
