@@ -43,6 +43,13 @@
       "when": 1793705785531,
       "tag": "0005_ticket_history_return_requests_cancel_reason",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793967228411,
+      "tag": "0006_meeting_edit_add_equipment_and_return_confirm",
+      "breakpoints": true
     }
   ]
 }

@@ -19,6 +19,10 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import MeetingLoans from './MeetingLoans';
+import { usePendingReturns } from '@/hooks/usePendingReturns';
+import { useSearchParams } from 'react-router-dom';
+import MeetingEditExtras from './MeetingEditExtras';
+import { mergeEditEquipment } from '@/lib/meetingOptions';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog';
 import { locationDescription } from '@/lib/meetingOptions';
 import { ADMIN_TIME_SLOTS, canScheduleHours, violatesMinAdvance, isPastTime, needsExceptionalJustification } from '@/lib/meetingTime';
@@ -130,9 +134,14 @@ const ReuniaoAdmin = () => {
   const [editOtherDescription, setEditOtherDescription] = useState('');
   const [editCalendarOpen, setEditCalendarOpen] = useState(false);
   const [editJustification, setEditJustification] = useState('');
+  const [editTheme, setEditTheme] = useState('');
+  const [editRamal, setEditRamal] = useState('');
+  const [editAdded, setEditAdded] = useState<string[]>([]);
   const [cancelTarget, setCancelTarget] = useState<MeetingWithDetails | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
+  const pendingReturns = usePendingReturns();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
     if (!user) return;
@@ -345,6 +354,15 @@ const ReuniaoAdmin = () => {
   };
 
   const openDetail = (meeting: MeetingWithDetails) => { setSelectedMeeting(meeting); setDialogOpen(true); };
+  const pendingByMeeting = (id: string) => pendingReturns.filter(r => r.meeting_id === id);
+
+  // Bell notifications link here with ?reuniao=<id>
+  useEffect(() => {
+    const target = searchParams.get('reuniao');
+    if (!target) return;
+    const found = meetings.find(m => m.id === target);
+    if (found) { openDetail(found); searchParams.delete('reuniao'); setSearchParams(searchParams, { replace: true }); }
+  }, [searchParams, meetings]);
 
   const openEditDialog = (meeting: MeetingWithDetails) => {
     setEditingMeeting(meeting);
@@ -352,6 +370,7 @@ const ReuniaoAdmin = () => {
     setEditStartTime(meeting.start_time); setEditEndTime(meeting.end_time); setEditLocation(meeting.location);
     setEditJustification(meeting.off_hours_justification || '');
     setEditOtherDescription(meeting.other_description || '');
+    setEditTheme(meeting.theme || ''); setEditRamal(meeting.ramal || ''); setEditAdded([]);
     setEditDialogOpen(true);
   };
 
@@ -380,8 +399,13 @@ const ReuniaoAdmin = () => {
         ((editStartTime >= m.start_time && editStartTime < m.end_time) || (editEndTime > m.start_time && editEndTime <= m.end_time) || (editStartTime <= m.start_time && editEndTime >= m.end_time)));
       if (conflict) { toast({ title: 'Horário/local indisponível', variant: 'destructive' }); return; }
     }
-    const { error } = await supabase.from('meetings').update({ meeting_date: dateStr, start_time: editStartTime, end_time: editEndTime, location: editLocation, other_description: locationDescription(editLocation, editOtherDescription), off_hours_justification: editJustification.trim() || null }).eq('id', editingMeeting.id);
-    if (error) { toast({ title: 'Erro ao editar reunião', variant: 'destructive' }); }
+    const { error } = await supabase.from('meetings').update({ meeting_date: dateStr, start_time: editStartTime, end_time: editEndTime, location: editLocation, theme: editTheme.trim() || null, ramal: editRamal.trim() || null, other_description: locationDescription(editLocation, editOtherDescription), off_hours_justification: editJustification.trim() || null }).eq('id', editingMeeting.id);
+    const newItems = mergeEditEquipment(editingMeeting.equipment, editAdded);
+    if (!error && newItems.length) {
+      const { error: eqError } = await supabase.rpc('add_meeting_equipment', { _meeting_id: editingMeeting.id, _items: newItems });
+      if (eqError) { toast({ title: 'Dados salvos, mas o equipamento não pôde ser acrescentado', description: eqError.message, variant: 'destructive' }); fetchMeetings(); return; }
+    }
+    if (error) { toast({ title: 'Erro ao editar reunião', description: error.message, variant: 'destructive' }); }
     else { toast({ title: 'Reunião editada com sucesso!' }); setEditDialogOpen(false); setEditingMeeting(null); fetchMeetings(); }
   };
 
@@ -462,6 +486,9 @@ const ReuniaoAdmin = () => {
                         {isFinalized ? 'Finalizada' : m.status === 'em_uso' ? 'Reservado' : m.status === 'cancelada' ? 'Cancelada' : 'Devolvido'}
                       </Badge>
                     </div>
+                    {pendingByMeeting(m.id).length > 0 && (
+                      <Badge variant="destructive" className="animate-pulse">Devolução pendente • {pendingByMeeting(m.id).reduce((s, r) => s + r.quantity, 0)} un. ({pendingByMeeting(m.id).map(r => r.equipment_label).join(', ')})</Badge>
+                    )}
                     {m.theme && <p className="text-xs text-primary font-medium truncate">Tema: {m.theme}</p>}
                     <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-muted-foreground" /> {m.start_time} - {m.end_time}</span>
@@ -664,6 +691,7 @@ const ReuniaoAdmin = () => {
             </div>
             {editLocation === 'Outro Local' && <div className="space-y-2"><Label htmlFor="admin-edit-other-location">Descreva o local da reunião <span className="text-destructive">*</span></Label><Textarea id="admin-edit-other-location" required value={editOtherDescription} onChange={e => setEditOtherDescription(e.target.value)} placeholder="Informe o endereço ou descreva onde a reunião será realizada..." /></div>}
             {needsExceptionalJustification(editStartTime, editEndTime, editDate) && <div className="space-y-2"><Label htmlFor="edit-justification">Justificativa para agendamento excepcional <span className="text-destructive">*</span></Label><Textarea id="edit-justification" required value={editJustification} onChange={e => setEditJustification(e.target.value)} placeholder="Ex: Solicitação extraordinária da Diretoria, com necessidade de realização imediata." /></div>}
+            {editingMeeting && <MeetingEditExtras linked={editingMeeting.equipment} theme={editTheme} onTheme={setEditTheme} ramal={editRamal} onRamal={setEditRamal} added={editAdded} onAdded={setEditAdded} />}
             <Button onClick={handleEditSave} className="w-full">Salvar Alterações</Button>
           </div>
         </DialogContent>

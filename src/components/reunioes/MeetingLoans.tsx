@@ -79,8 +79,7 @@ const MeetingLoans = ({ meetingId, mode, onChanged }: { meetingId: string; mode:
 
   const confirm = async (r: ReturnRequest) => {
     setBusy(true);
-    const { error } = await supabase.rpc('return_loan_item', { _item_id: r.item_id, _quantity: r.quantity });
-    if (!error) await supabase.from('return_requests').update({ status: 'aprovada', admin_id: user?.id, admin_name: user?.name, resolved_at: new Date().toISOString() }).eq('id', r.id);
+    const { error } = await supabase.rpc('confirm_return_request', { _request_id: r.id });
     setBusy(false);
     if (error) { toast({ title: 'Erro ao confirmar devolução', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Recebimento confirmado. Estoque atualizado.' });
@@ -138,13 +137,13 @@ const MeetingLoans = ({ meetingId, mode, onChanged }: { meetingId: string; mode:
         <div className="space-y-2">
           <p className="text-xs font-semibold text-muted-foreground">Solicitações de devolução</p>
           {requests.map(r => (
-            <div key={r.id} className="rounded border border-border p-2 text-xs space-y-1">
+            <div key={r.id} className={`rounded border p-2 text-xs space-y-1 ${r.status === 'pendente' ? 'border-warning bg-warning/10' : 'border-border'}`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span>{r.quantity} un. — {r.requested_by_name || 'Usuário'} • {new Date(r.created_at).toLocaleString('pt-BR')}</span>
                 <Badge variant={r.status === 'pendente' ? 'outline' : r.status === 'aprovada' ? 'secondary' : 'destructive'}>{statusLabel[r.status] || r.status}</Badge>
               </div>
               <p className="text-muted-foreground">Motivo: {r.reason}</p>
-              {r.admin_name && <p className="text-muted-foreground">Analisado por {r.admin_name}{r.admin_note ? ` — ${r.admin_note}` : ''}</p>}
+              {r.admin_name && <p className="text-muted-foreground">{r.status === 'aprovada' ? 'Recebido por' : 'Analisado por'} {r.admin_name}{(r as any).resolved_at ? ` em ${new Date((r as any).resolved_at).toLocaleString('pt-BR')}` : ''}{r.admin_note ? ` — ${r.admin_note}` : ''}</p>}
               {mode === 'admin' && r.status === 'pendente' && (refuseFor === r.id ? (
                 <div className="space-y-1">
                   <Textarea value={refuseNote} onChange={e => setRefuseNote(e.target.value)} placeholder="Motivo da recusa" />
