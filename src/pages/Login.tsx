@@ -149,7 +149,7 @@ const Login = () => {
               <img src={ctiLogoNeg} alt="CTI - Coordenadoria de Tecnologia da Informação" className="h-12 w-auto [.light_&]:hidden" />
               <img src={ctiLogoPos} alt="CTI - Coordenadoria de Tecnologia da Informação" className="h-12 w-auto hidden [.light_&]:block" />
               <span className="w-px h-10 bg-border" />
-              <img src={logoArpe} alt="Logo ARPE" className="h-10 w-auto object-contain" />
+              <img src={logoArpeAsset.url} alt="Logo ARPE" className="h-10 w-auto object-contain" />
             </div>
             <h1 className="text-2xl font-extrabold text-card-foreground">CTIChamados</h1>
             <p className="text-muted-foreground mt-2">
