@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Lock, User, Mail, UserPlus, Phone } from 'lucide-react';
-import logoArpe from '@/assets/logo_arpe.png';
+import logoArpeAsset from '@/assets/logo-arpe.png.asset.json';
 import ctiLogoPos from '@/assets/brand/cti-logo-horizontal-positivo.svg';
 import ctiLogoNeg from '@/assets/brand/cti-logo-horizontal-negativo.svg';
 import circuito from '@/assets/brand/padrao-circuito.svg';
