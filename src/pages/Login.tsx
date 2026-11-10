@@ -146,8 +146,8 @@ const Login = () => {
           <div className="brand-stripe absolute top-0 left-0 right-0" />
           <div className="flex flex-col items-center mb-8">
             <div className="flex items-center gap-4 mb-5">
-              <img src={ctiLogoNeg} alt="CTI - Coordenadoria de Tecnologia da Informação" className="h-12 w-auto hidden dark:block [.light_&]:hidden" />
-              <img src={ctiLogoPos} alt="CTI - Coordenadoria de Tecnologia da Informação" className="h-12 w-auto [:root:not(.light)_&]:hidden" />
+              <img src={ctiLogoNeg} alt="CTI - Coordenadoria de Tecnologia da Informação" className="h-12 w-auto [.light_&]:hidden" />
+              <img src={ctiLogoPos} alt="CTI - Coordenadoria de Tecnologia da Informação" className="h-12 w-auto hidden [.light_&]:block" />
               <span className="w-px h-10 bg-border" />
               <img src={logoArpe} alt="Logo ARPE" className="h-10 w-auto object-contain" />
             </div>
