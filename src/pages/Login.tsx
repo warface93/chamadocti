@@ -6,6 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Lock, User, Mail, UserPlus, Phone } from 'lucide-react';
 import logoArpe from '@/assets/logo_arpe.png';
+import ctiLogoPos from '@/assets/brand/cti-logo-horizontal-positivo.svg';
+import ctiLogoNeg from '@/assets/brand/cti-logo-horizontal-negativo.svg';
+import circuito from '@/assets/brand/padrao-circuito.svg';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -136,15 +139,19 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background" />
+      <div className="absolute inset-0 opacity-20 bg-cover bg-center" style={{ backgroundImage: `url(${circuito})` }} />
       
       <div className="w-full max-w-md relative z-10">
-        <div className="glow-card bg-card rounded-2xl p-8 border border-border">
+        <div className="glow-card bg-card rounded-2xl p-8 pt-9 border border-border">
+          <div className="brand-stripe absolute top-0 left-0 right-0" />
           <div className="flex flex-col items-center mb-8">
-            <div className="w-20 h-20 flex items-center justify-center mb-4">
-              <img src={logoArpe} alt="Logo ARPE" className="w-20 h-20 object-contain" />
+            <div className="flex items-center gap-4 mb-5">
+              <img src={ctiLogoNeg} alt="CTI - Coordenadoria de Tecnologia da Informação" className="h-12 w-auto hidden dark:block [.light_&]:hidden" />
+              <img src={ctiLogoPos} alt="CTI - Coordenadoria de Tecnologia da Informação" className="h-12 w-auto [:root:not(.light)_&]:hidden" />
+              <span className="w-px h-10 bg-border" />
+              <img src={logoArpe} alt="Logo ARPE" className="h-10 w-auto object-contain" />
             </div>
-            <h1 className="text-2xl font-bold gradient-text">CTIChamados</h1>
+            <h1 className="text-2xl font-extrabold text-card-foreground">CTIChamados</h1>
             <p className="text-muted-foreground mt-2">
               {isSignUpMode && !hasUsers 
                 ? 'Primeiro Acesso - Crie o Administrador'
