@@ -275,7 +275,7 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-2xl bg-card border-border">
         <DialogHeader>
-          <DialogTitle className="text-foreground flex items-center gap-3">
+          <DialogTitle className="text-foreground flex flex-wrap items-center gap-3 break-words">
             {ticket.title}
             <Badge className={cn('text-xs', statusStyles[ticket.status])}>
               {statusLabels[ticket.status]}
@@ -433,7 +433,7 @@ const TicketModal = ({ ticket, user, onClose }: TicketModalProps) => {
                     key={value}
                     className={cn(
                       'w-4 h-4',
-                      ticket.rating! >= value
+                      (ticket.rating ?? 0) >= value
                         ? 'fill-warning text-warning'
                         : 'text-muted-foreground'
                     )}

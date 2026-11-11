@@ -191,9 +191,9 @@ const IArpeAssistant: React.FC = () => {
 
       {/* Chat window */}
       {open && (
-        <div className="fixed bottom-6 right-6 z-50 w-[380px] h-[520px] rounded-2xl shadow-2xl border border-border bg-card flex flex-col overflow-hidden animate-scale-in">
+        <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-[380px] max-w-[calc(100vw-2rem)] h-[520px] max-h-[calc(100dvh-3rem)] rounded-2xl shadow-2xl border border-border bg-card flex flex-col overflow-hidden animate-scale-in">
           {/* Header */}
-          <div className="flex items-center gap-3 p-4 bg-primary text-primary-foreground">
+          <div className="flex shrink-0 items-center gap-3 p-4 bg-primary text-primary-foreground">
             <div className="relative w-10 h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center overflow-hidden">
               <img
                 src={iarpeImg}
@@ -218,7 +218,7 @@ const IArpeAssistant: React.FC = () => {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 relative overflow-hidden">
+          <div className="flex-1 min-h-0 relative overflow-hidden">
             <ScrollArea className="h-full p-4" ref={scrollRef as any}>
               <div className="space-y-3">
                 {messages.map((msg, i) => (
@@ -267,7 +267,7 @@ const IArpeAssistant: React.FC = () => {
           </div>
 
           {/* Input */}
-          <div className="p-3 border-t border-border">
+          <div className="shrink-0 p-3 border-t border-border">
             <form
               onSubmit={(e) => { e.preventDefault(); sendMessage(); }}
               className="flex gap-2"
