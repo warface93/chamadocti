@@ -5,7 +5,16 @@ export const EQUIPMENT_OPTIONS = [
   { id: 'microfone', label: 'Microfone' },
   { id: 'link_reuniao', label: 'Link de Reunião' },
   { id: 'caixa_som', label: 'Caixa de Som' },
+  { id: 'fone_headset', label: 'Fone Headset' },
+  { id: 'caixinha_som', label: 'Caixinha de Som' },
+  { id: 'passador_slider', label: 'Passador Slider' },
 ];
+
+export const PHYSICAL_EQUIPMENT = EQUIPMENT_OPTIONS.filter(o => !['sem_equipamentos', 'link_reuniao'].includes(o.id));
+
+export function equipmentLabel(id: string): string {
+  return EQUIPMENT_OPTIONS.find(o => o.id === id)?.label || id;
+}
 
 export function toggleEquipment(selected: string[], id: string): string[] {
   if (id === 'sem_equipamentos') return selected.includes(id) ? [] : [id];
@@ -17,7 +26,7 @@ export function locationDescription(location: string, description: string): stri
   return location === 'Outro Local' ? description.trim() || null : null;
 }
 /** Equipment ids that can be ADDED while editing: already linked items stay locked and are never removable. */
-export const ADDABLE_EQUIPMENT = ['notebook', 'webcam', 'microfone', 'caixa_som', 'link_reuniao'];
+export const ADDABLE_EQUIPMENT = EQUIPMENT_OPTIONS.filter(o => o.id !== 'sem_equipamentos').map(o => o.id);
 
 export function mergeEditEquipment(linked: string[], added: string[]): string[] {
   const extra = added.filter(id => ADDABLE_EQUIPMENT.includes(id) && !linked.includes(id));

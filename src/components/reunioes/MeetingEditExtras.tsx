@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useEquipmentAvailability } from '@/hooks/useEquipmentAvailability';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -15,13 +14,7 @@ interface Props {
 
 /** Theme, ramal and add-only equipment fields shared by user and admin edit dialogs. */
 const MeetingEditExtras = ({ linked, theme, onTheme, ramal, onRamal, added, onAdded }: Props) => {
-  const [available, setAvailable] = useState<Record<string, number>>({});
-  useEffect(() => {
-    Promise.all(ADDABLE_EQUIPMENT.filter(id => id !== 'link_reuniao').map(async id => {
-      const { data } = await supabase.rpc('equipment_type_available', { _option: id });
-      return [id, Number(data) || 0] as const;
-    })).then(entries => setAvailable(Object.fromEntries(entries)));
-  }, []);
+  const { available } = useEquipmentAvailability();
 
   return (
     <>
