@@ -40,7 +40,7 @@ const AlertDialogContent = React.forwardRef<
       {...props}
     >
       {React.Children.toArray(children).filter(child => React.isValidElement(child) && child.type === AlertDialogHeader)}
-      <div className="modal-body">{React.Children.toArray(children).filter(child => !React.isValidElement(child) || (child.type !== AlertDialogHeader && child.type !== AlertDialogFooter)))}</div>
+      <div className="modal-body">{React.Children.toArray(children).filter(child => !React.isValidElement(child) || (child.type !== AlertDialogHeader && child.type !== AlertDialogFooter))}</div>
       {React.Children.toArray(children).filter(child => React.isValidElement(child) && child.type === AlertDialogFooter)}
     </AlertDialogPrimitive.Content>
   </AlertDialogPortal>
