@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ADMIN_TIME_SLOTS, USER_TIME_SLOTS, canScheduleHours, isPastTime, needsExceptionalJustification, violatesMinAdvance, MIN_ADVANCE_MESSAGE } from '@/lib/meetingTime';
 
 import { EQUIPMENT_OPTIONS, toggleEquipment, locationDescription } from '@/lib/meetingOptions';
+import { useEquipmentAvailability } from '@/hooks/useEquipmentAvailability';
 import MeetingLoans from './MeetingLoans';
 import MeetingEditExtras from './MeetingEditExtras';
 import { mergeEditEquipment } from '@/lib/meetingOptions';
@@ -92,6 +93,7 @@ const isTimePassed = (time: string, selectedDate: Date | undefined) => {
 
 const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
   const { user, isAdmin } = useAuth();
+  const { available, refresh: refreshAvailability } = useEquipmentAvailability();
   const timeSlots = isAdmin ? ADMIN_TIME_SLOTS : USER_TIME_SLOTS;
   const [justification, setJustification] = useState('');
   const [editJustification, setEditJustification] = useState('');
@@ -358,6 +360,16 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
     }
     setLoading(true);
     try {
+      const availability = await Promise.all(selectedEquipment.filter(id => !['sem_equipamentos', 'link_reuniao'].includes(id)).map(async id => {
+        const { data, error } = await supabase.rpc('equipment_type_available', { _option: id });
+        if (error) throw error;
+        return { id, quantity: Number(data) || 0 };
+      }));
+      if (availability.some(item => item.quantity < 1)) {
+        toast({ title: 'Equipamento indisponível no estoque. Atualize sua seleção.', variant: 'destructive' });
+        void refreshAvailability();
+        return;
+      }
       const { data: meeting, error } = await supabase.from('meetings').insert({
         user_id: user.id,
         meeting_date: format(date, 'yyyy-MM-dd'),
@@ -376,8 +388,12 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
 
       const equipmentToSave = selectedEquipment.filter(e => e !== 'sem_equipamentos');
       if (equipmentToSave.length > 0) {
-        const equipmentRows = equipmentToSave.map(eq => ({ meeting_id: meeting.id, equipment: eq }));
-        await supabase.from('meeting_equipment').insert(equipmentRows);
+        const { error: equipmentError } = await supabase.rpc('add_meeting_equipment', { _meeting_id: meeting.id, _items: equipmentToSave });
+        if (equipmentError) {
+          toast({ title: 'Reunião criada, mas os equipamentos não foram vinculados. Abra Editar Reunião para acrescentá-los.', variant: 'destructive' });
+          fetchMyMeetings();
+          return;
+        }
       }
 
       toast({ title: 'Solicitação enviada com sucesso!' });
@@ -645,8 +661,8 @@ const ReuniaoUsuario = ({ formOnly = false }: { formOnly?: boolean }) => {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {EQUIPMENT_OPTIONS.map(eq => (
                 <div key={eq.id} className="flex items-center space-x-2">
-                  <Checkbox id={eq.id} checked={selectedEquipment.includes(eq.id)} onCheckedChange={() => handleEquipmentToggle(eq.id)} />
-                  <label htmlFor={eq.id} className="text-sm font-medium text-foreground cursor-pointer">{eq.label}</label>
+                  <Checkbox id={eq.id} checked={selectedEquipment.includes(eq.id)} disabled={!['sem_equipamentos', 'link_reuniao'].includes(eq.id) && (available[eq.id] ?? 0) < 1 && !selectedEquipment.includes(eq.id)} onCheckedChange={() => handleEquipmentToggle(eq.id)} />
+                  <label htmlFor={eq.id} className="text-sm font-medium text-foreground cursor-pointer">{eq.label}{!['sem_equipamentos', 'link_reuniao'].includes(eq.id) && <span className="block text-xs text-muted-foreground">{(available[eq.id] ?? 0) > 0 ? `${available[eq.id]} disp.` : 'Indisponível'}</span>}</label>
                 </div>
               ))}
             </div>

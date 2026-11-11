@@ -1,3 +1,9 @@
+# Atualização atual
+- [ ] Substituir autoria da IArpe e republicar/testar a resposta.
+- [ ] Integrar Fone Headset, Caixinha de Som e Passador Slider em solicitações, edição, inventário e disponibilidade no banco.
+- [ ] Preservar empréstimos, devoluções e notificações existentes; testar os novos tipos.
+- [ ] Corrigir globalmente limites e rolagem de modais e testar em desktop/notebook/mobile.
+
 # CTI meeting and ticket improvements
 - [x] Rename navigation, reservation labels and Login/Senha category without changing identifiers.
 - [x] Exclusive first Sem Equipamentos option and shared fifteen-minute creation/edit slots.

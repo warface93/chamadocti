@@ -22,7 +22,7 @@ import MeetingLoans from './MeetingLoans';
 import { usePendingReturns } from '@/hooks/usePendingReturns';
 import { useSearchParams } from 'react-router-dom';
 import MeetingEditExtras from './MeetingEditExtras';
-import { mergeEditEquipment } from '@/lib/meetingOptions';
+import { mergeEditEquipment, EQUIPMENT_OPTIONS } from '@/lib/meetingOptions';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog';
 import { locationDescription } from '@/lib/meetingOptions';
 import { ADMIN_TIME_SLOTS, canScheduleHours, violatesMinAdvance, isPastTime, needsExceptionalJustification } from '@/lib/meetingTime';
@@ -70,10 +70,7 @@ interface InventoryEquipment {
   total_quantity: number;
 }
 
-const EQUIPMENT_LABELS: Record<string, string> = {
-  notebook: 'Notebook', webcam: 'Webcam', microfone: 'Microfone',
-  link_reuniao: 'Link de Reunião', caixa_som: 'Caixa de Som', sem_equipamentos: 'Sem Equipamentos',
-};
+const EQUIPMENT_LABELS: Record<string, string> = Object.fromEntries(EQUIPMENT_OPTIONS.map(o => [o.id, o.label]));
 
 const LOCATIONS = ['3° Andar', '2° Andar', 'Auditório', 'Outro Local'];
 

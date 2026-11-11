@@ -50,6 +50,13 @@
       "when": 1793967228411,
       "tag": "0006_meeting_edit_add_equipment_and_return_confirm",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794361097540,
+      "tag": "0007_extend_meeting_equipment_types",
+      "breakpoints": true
     }
   ]
 }

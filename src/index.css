@@ -308,3 +308,30 @@
   0%, 90%, 100% { opacity: 0; }
   95% { opacity: 0.15; background: radial-gradient(ellipse at 38% 40%, hsl(var(--card)) 3px, transparent 3px), radial-gradient(ellipse at 58% 40%, hsl(var(--card)) 3px, transparent 3px); }
 }
+
+/* Central containment keeps existing modal widths and desktop spacing. */
+.viewport-modal {
+  display: flex !important;
+  flex-direction: column;
+  width: calc(100vw - 2rem) !important;
+  max-height: calc(100dvh - 2rem) !important;
+  overflow: hidden !important;
+}
+.viewport-modal > :not(.modal-body) { flex-shrink: 0; }
+.viewport-modal > div:first-child:not(.modal-body) { padding-right: 1.5rem; }
+.modal-body {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  gap: 1rem;
+  overflow-wrap: anywhere;
+}
+.modal-body > * { min-width: 0; }
+.modal-body > form > div:last-child:has(button) {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background-color: hsl(var(--card));
+}

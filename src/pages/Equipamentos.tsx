@@ -12,6 +12,7 @@ import { Plus, Edit, Trash2, Search, Monitor, ChevronLeft, ChevronRight, Package
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { isValidQuantity } from '@/lib/equipmentQuantity';
+import { PHYSICAL_EQUIPMENT } from '@/lib/meetingOptions';
 
 interface Equipment {
   id: string;
@@ -246,7 +247,8 @@ const Equipamentos = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label>Tipo do Equipamento</Label>
-                <Input value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value })} placeholder="Ex: Notebook, Webcam, Projetor" className="bg-secondary/50" required />
+                <Input list="inventory-equipment-types" value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value })} placeholder="Ex: Notebook, Fone Headset, Passador Slider" className="bg-secondary/50" required />
+                <datalist id="inventory-equipment-types">{PHYSICAL_EQUIPMENT.map(o => <option key={o.id} value={o.label} />)}</datalist>
               </div>
               <div className="space-y-2">
                 <Label>Marca</Label>

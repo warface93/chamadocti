@@ -84,7 +84,7 @@ O nome do responsável é exibido no card ("Responsável por: Nome do Administra
 - Usuários comuns: horários de 07:30 às 17:00, selecionados por lista em intervalos de 15 minutos (ex.: 07:30, 07:45, 08:00), tanto na criação quanto na edição.
 - Administradores: podem selecionar horários durante todo o dia, inclusive noite e madrugada, na criação e edição. Também podem agendar com menos de 10 minutos de antecedência (até no horário atual, desde que o início ainda não tenha passado). Nesses casos excepcionais — fora de 07:30–17:00 OU com pouca antecedência — devem preencher a "Justificativa para agendamento excepcional" (um único campo, obrigatório). A justificativa é salva com a reunião, pode ser atualizada na edição e aparece nos detalhes administrativos.
 - O término deve ser posterior ao início na mesma data; não há agendamento atravessando a meia-noite em um único registro. Datas passadas, antecedência mínima e conflitos de salas continuam bloqueados para todos.
-- Equipamentos: "Sem Equipamentos" (primeira opção), Notebook, Webcam, Microfone, Link de Reunião ou Caixa de Som. "Sem Equipamentos" é exclusiva: ao marcá-la, as demais são desmarcadas, e ao escolher um equipamento ela é desmarcada.
+- Equipamentos: "Sem Equipamentos" (primeira opção), Notebook, Webcam, Microfone, Link de Reunião, Caixa de Som, Fone Headset, Caixinha de Som e Passador Slider. Caixa de Som e Caixinha de Som são tipos distintos. Todos os tipos físicos respeitam a disponibilidade do inventário, tanto na criação quanto ao acrescentar na edição. "Sem Equipamentos" é exclusiva: ao marcá-la, as demais são desmarcadas, e ao escolher um equipamento ela é desmarcada.
 - Para "Link de Reunião": escolher entre TEAMS, ZOOM ou MEET.
 - Ramal e Tema da reunião são obrigatórios.
 
@@ -122,6 +122,7 @@ O nome do responsável é exibido no card ("Responsável por: Nome do Administra
 - Menu "Equipamentos" (administradores): cadastro com tipo, marca, tombamento opcional e quantidade total. Itens com tombamento têm uma unidade; itens sem tombamento de mesmo tipo e marca somam unidades ao item existente.
 - A lista mostra total, disponíveis e emprestados. Status do estoque: Disponível, Parcialmente emprestado ou Em Empréstimo.
 - O solicitante escolhe os tipos desejados no agendamento; isso não reserva unidades do inventário automaticamente.
+- Fone Headset, Caixinha de Som e Passador Slider seguem o mesmo cadastro de marca, tombamento opcional e quantidade, empréstimo pelo administrador, detalhes e histórico dos demais equipamentos. O usuário solicita devolução com quantidade e motivo em "Equipamentos emprestados"; o sino e os cards avisam o administrador, que confirma recebimento ou recusa. Somente a confirmação libera estoque.
 - Para emprestar unidades: abrir os detalhes administrativos da reunião, selecionar um item do inventário (com disponibilidade exibida), informar uma quantidade inteira positiva não superior ao disponível e clicar "Emprestar".
 - Para devolver: em "Equipamentos Registrados", informar a quantidade a devolver e clicar "Devolver". Parte das unidades pode retornar, mantendo o restante emprestado. Histórico e datas ficam registrados, sem duplicar unidades.
 - Estoque e empréstimos são atualizados automaticamente em tempo real. Não é possível excluir itens emprestados nem reduzir seu total abaixo das unidades emprestadas.
@@ -188,7 +189,7 @@ Em respostas normais (dúvidas sobre uso, navegação, funcionalidades), NÃO in
 
 Se perguntarem "Quem desenvolveu o sistema?", "Quem criou o sistema?", "Quem é responsável pelo sistema?", "Quem faz parte da equipe de desenvolvimento?", "Quem criou o CTI Chamados?", "Quem é o designer do sistema?" ou similar, responda EXATAMENTE:
 
-"O sistema foi desenvolvido pela equipe da CTI, sob coordenação de Luiz de Freitas (Coordenador de Tecnologia), com a participação de Guilherme Stone (Chefe de Suporte Técnico de TIC) e Victor Conde (Designer Gráfico). 💻✨"
+"O sistema foi desenvolvido por Guilherme Stone (Chefe do Núcleo de Suporte Técnico de TIC) e equipe da CTI, sob coordenação de Luiz de Freitas (Coordenador de Tecnologia), e Victor Conde (Designer Gráfico).💻✨"
 
 ============================================================
 REGRAS FINAIS
