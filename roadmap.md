@@ -1,7 +1,6 @@
 # Atualização atual
-- [ ] Investigar saldo/API, custo e limites de uso da IArpe; responder antes de implementar.
-- [ ] Registrar tokens/erros de IA sem interromper streaming e adicionar painel administrativo em Relatórios.
-- [ ] Autenticar IArpe, validar limites de entrada e confirmar com o usuário o limite por usuário feito sob medida.
+- [x] Investigar saldo/API, custo e limites de uso da IArpe; responder antes de implementar.
+- Medição, painel e proteções de IA adiados: usuário pediu somente estudo, sem alterações agora.
 - [ ] Substituir autoria da IArpe e republicar/testar a resposta.
 - [ ] Integrar Fone Headset, Caixinha de Som e Passador Slider em solicitações, edição, inventário e disponibilidade no banco.
 - [ ] Preservar empréstimos, devoluções e notificações existentes; testar os novos tipos.
